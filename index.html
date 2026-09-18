@@ -451,6 +451,30 @@ function gsRun(fn, ...args){
   });
 }
 
+// مواقيت الحصص الدراسية الرسمية لحساب دقائق التأخير تلقائياً
+const LESSON_TIMINGS = [
+  { lessonIndex: 0, startMinutes: 7 * 60 + 55 },  // الحصة 1: 07:55
+  { lessonIndex: 1, startMinutes: 8 * 60 + 45 },  // الحصة 2: 08:45
+  { lessonIndex: 2, startMinutes: 9 * 60 + 35 },  // الحصة 3: 09:35
+  { lessonIndex: 3, startMinutes: 10 * 60 + 35 }, // الحصة 4: 10:35
+  { lessonIndex: 4, startMinutes: 11 * 60 + 25 }, // الحصة 5: 11:25
+  { lessonIndex: 5, startMinutes: 12 * 60 + 25 }, // الحصة 6: 12:25
+  { lessonIndex: 6, startMinutes: 13 * 60 + 10 }  // الحصة 7: 13:10
+];
+
+function calculateLateMinutes(){
+  const lessonSelect = document.getElementById('lessonSelect');
+  const selectedIdx = lessonSelect ? lessonSelect.selectedIndex : 0;
+  
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const timing = LESSON_TIMINGS.find(t => t.lessonIndex === selectedIdx) || LESSON_TIMINGS[0];
+  const late = currentMinutes - timing.startMinutes;
+
+  return late > 0 ? late : 0;
+}
+
 const GRADES = [
   { id: "g10",  name: "الصف العاشر" },
   { id: "g11s", name: "الحادي عشر علمي" },
@@ -902,6 +926,9 @@ function renderTable(){
       } else if(row.attend === 'late') {
         row.participation = (row.notesType && row.notesType !== "لا توجد ملاحظة") ? 1 : 2;
         row.application = 3;
+        // حساب التأخير تلقائياً حسب توقيت جدول الحصص المعتمد
+        row.lateMinutes = calculateLateMinutes();
+        lateInput.value = row.lateMinutes;
         lateInput.style.display = 'block';
       } else if(row.attend === 'absent') {
         row.participation = 0;
@@ -1308,7 +1335,7 @@ function importNamesFromExcel(e){
   reader.readAsArrayBuffer(file);
 }
 
-/* ==================== بطاقات الطالبات والتحسينات البصرية ==================== */
+/* ==================== بطاقات الطالبات ==================== */
 const cardsModal = document.getElementById('cardsModal');
 
 let ministryLogoData = localStorage.getItem('custom_ministry_logo') || '';
