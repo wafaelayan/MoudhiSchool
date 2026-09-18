@@ -75,13 +75,15 @@
   .star-banner select{ font-family:inherit; font-size:15px; font-weight:700; color:var(--red); padding:8px 12px; border-radius:8px; border:1px solid var(--pink); background:#fff; flex:1; min-width:180px; -webkit-appearance:none; }
 
   .table-wrap{ background:#fff; border:1px solid var(--line); border-radius:14px; overflow-x:auto; width:100%; -webkit-overflow-scrolling:touch; margin-bottom:15px; }
-  table{ width:100%; border-collapse:collapse; min-width:850px; }
+  table{ width:100%; border-collapse:collapse; min-width:900px; }
   thead th{ background:var(--pink-dark); color:#fff; font-size:12px; font-weight:700; padding:10px 6px; text-align:center; white-space:nowrap; }
   thead th small{ display:block; font-weight:500; opacity:.85; font-size:10px; }
   tbody td{ padding:8px 6px; border-bottom:1px solid var(--line); font-size:13px; text-align:center; vertical-align:middle; }
   tbody tr:nth-child(even){ background:#FDF8F9; }
   tbody tr:hover{ background:#FADEE3; }
-  td.name-cell{ text-align:right; font-weight:600; min-width:150px; }
+  
+  /* توسيع خانة اسم الطالبة ليظهر كامل دون اختفاء */
+  td.name-cell{ text-align:right; font-weight:600; min-width:220px; width:220px; }
   td.name-cell input{ width:100%; border:1px solid transparent; background:transparent; font-family:inherit; font-size:15px; font-weight:600; padding:5px 6px; border-radius:6px; -webkit-appearance:none; }
   td.name-cell input:hover, td.name-cell input:focus{ border-color:var(--line); background:#fff; outline:none; }
   
@@ -585,7 +587,7 @@ async function showApp(displayName){
   GRADES.forEach(g=>{
     store[g.id] = { lessons: DEFAULT_LESSONS.slice(), sections: {} };
     SECTIONS[g.id].forEach(sec => {
-      store[g.id].sections[sec] = { students: defaultStudents(), records: {}, civilIds: {}, photos: {} };
+      store[g.id].sections[sec] = { students: defaultStudents(), records: {}, civilIds: {}, photos: {}, hiddenCards: [] };
     });
   });
 
@@ -824,7 +826,7 @@ function renderTable(){
   thead.innerHTML = `
     <tr>
       <th style="width:36px;">م</th>
-      <th style="width:150px;">اسم الطالبة</th>
+      <th style="min-width:220px; width:220px;">اسم الطالبة</th>
       <th style="width:90px;">الحضور<small>(1)</small></th>
       <th>المشاركة<small>(2)</small></th>
       <th>التطبيق العملي<small>(3)</small></th>
@@ -837,7 +839,7 @@ function renderTable(){
       ` : ''}
       <th>الملاحظات والمخالفات</th>
       <th>الإجراء المتبع</th>
-      <th>الشارات والرموز</th>
+      <th>البونص</th>
     </tr>
   `;
 
@@ -1052,7 +1054,7 @@ function renderTable(){
     tdAction.appendChild(actionBox);
     tr.appendChild(tdAction);
 
-    // إضافة درجة تلقائياً عند النقر على أي من الرموز الشرفية
+    // البونص: إضافة درجة تلقائياً عند اختيار أي رمز شرفي
     const tdBadges = document.createElement('td');
     const badgeWrap = document.createElement('div'); badgeWrap.className = 'badge-cell';
 
@@ -1068,7 +1070,6 @@ function renderTable(){
         row.participationSymbols = (row.participationSymbols ? row.participationSymbols + ' ' : '') + sym;
         symbolsDiv.textContent = row.participationSymbols;
         
-        // زيادة درجة المشاركة بمقدار 1 عند إضافة رمز تحفيزي
         row.participation = Math.min(2, Number(row.participation || 0) + 1);
         const partInp = tr.querySelector('.part-input');
         if(partInp) partInp.value = row.participation;
@@ -1300,7 +1301,7 @@ function importNamesFromExcel(e){
   reader.readAsArrayBuffer(file);
 }
 
-/* ==================== بطاقات الطالبات إزلة العمود والمسح و2.25 سم ==================== */
+/* ==================== بطاقات الطالبات ==================== */
 const cardsModal = document.getElementById('cardsModal');
 
 let ministryLogoData = localStorage.getItem('custom_ministry_logo') || '';
@@ -1325,19 +1326,22 @@ function uploadLogo(type, e){
   reader.readAsDataURL(file);
 }
 
-function deleteStudentCard(idx){
-  if(!confirm("هل أنتِ متأكدة من مسح هذه الطالبة من بطاقات الشعبة؟")) return;
+// إخفاء/مسح الطالبة من الطباعة والبطاقات فقط مع الحفاظ عليها في كشف الدرجات الرئيسي
+function deleteStudentCard(studentName){
+  if(!confirm(`هل أنتِ متأكدة من مسح بطاقة الطالبة (${studentName}) من قائمة الطباعة؟`)) return;
   const secData = getSectionData();
-  secData.students.splice(idx, 1);
-  if(secData.photos) delete secData.photos[idx];
+  if(!secData.hiddenCards) secData.hiddenCards = [];
+  if(!secData.hiddenCards.includes(studentName)) {
+    secData.hiddenCards.push(studentName);
+  }
   scheduleSave();
   openCardsModal();
-  renderPage();
 }
 
 function openCardsModal(){
   const secData = getSectionData();
   if(!secData.photos) secData.photos = {};
+  if(!secData.hiddenCards) secData.hiddenCards = [];
 
   if(ministryLogoData) document.getElementById('ministryStatus').textContent = '✓ تم الحفظ';
   if(schoolLogoData) document.getElementById('schoolStatus').textContent = '✓ تم الحفظ';
@@ -1352,28 +1356,31 @@ function openCardsModal(){
       <tr>
         <th style="width:30px;">م</th>
         <th>اسم الطالبة</th>
-        <th style="width:120px;">الصورة</th>
-        <th style="width:60px;">إجراء</th>
+        <th style="width:110px;">الصورة</th>
+        <th style="width:65px;">إجراء</th>
       </tr>
     </thead>
     <tbody></tbody>
   `;
 
   const tbody = table.querySelector('tbody');
+  let counter = 1;
   secData.students.forEach((name, idx)=>{
+    if(secData.hiddenCards.includes(name)) return;
+
     const tr = document.createElement('tr');
     const photoData = secData.photos[idx] || '';
 
     tr.innerHTML = `
-      <td>${idx+1}</td>
-      <td style="text-align:right; font-weight:bold;">${name}</td>
-      <td>
+      <td>${counter++}</td>
+      <td style="text-align:right; font-weight:bold; padding-right:10px;">${name}</td>
+      <td style="text-align:center;">
         <input type="file" accept="image/*" onchange="uploadStudentPhoto(event, ${idx})" style="display:none;" id="photoFile_${idx}">
-        <button class="btn btn-outline" style="font-size:10px; padding:4px 6px;" onclick="document.getElementById('photoFile_${idx}').click()">📁 رفع صورة</button>
-        ${photoData ? '<span style="color:var(--green); font-size:10px;">✓ تم</span>' : ''}
+        <button class="btn btn-outline" style="font-size:10px; padding:3px 6px;" onclick="document.getElementById('photoFile_${idx}').click()">📁 رفع صورة</button>
+        ${photoData ? '<span style="color:var(--green); font-size:10px; display:block; margin-top:2px;">✓ تم الرفع</span>' : ''}
       </td>
-      <td>
-        <button class="user-del-btn" onclick="deleteStudentCard(${idx})">مسح</button>
+      <td style="text-align:center;">
+        <button class="user-del-btn" onclick="deleteStudentCard('${name}')">مسح</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -1408,6 +1415,8 @@ function printAllCards(){
   let cardsHTML = '';
 
   secData.students.forEach((name, idx)=>{
+    if(secData.hiddenCards && secData.hiddenCards.includes(name)) return;
+
     const photo = secData.photos[idx];
 
     cardsHTML += `
@@ -1457,39 +1466,61 @@ function printAllCards(){
         .student-card {
           width: 90mm; height: 60mm;
           border: 2px solid #8A1C30;
-          border-radius: 4mm; padding: 3mm 4mm;
+          border-radius: 4mm; padding: 2.5mm 3mm;
           background: #fff;
           display: flex; flex-direction: column; justify-content: space-between;
           page-break-inside: avoid; box-sizing: border-box;
+          overflow: hidden;
         }
         .card-header {
           display: flex; justify-content: space-between; align-items: center;
           border-bottom: 1px solid #F6C2C9; padding-bottom: 1mm; margin-bottom: 1mm;
         }
         .card-header .header-text { text-align: center; flex: 1; }
-        .card-header .header-text h4 { margin: 0; font-family: 'Reem Kufi', sans-serif; font-size: 15pt; color: #8A1C30; font-weight: 700; line-height: 1.1; }
-        .card-header .header-text p { margin: 0; font-size: 8pt; color: #333; font-weight: bold; }
+        .card-header .header-text h4 { margin: 0; font-family: 'Reem Kufi', sans-serif; font-size: 14pt; color: #8A1C30; font-weight: 700; line-height: 1.1; }
+        .card-header .header-text p { margin: 0; font-size: 7.5pt; color: #333; font-weight: bold; }
         
-        .card-body { display: flex; justify-content: space-between; align-items: center; flex: 1; }
+        .card-body { 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center; 
+          flex: 1; 
+          width: 100%;
+          box-sizing: border-box;
+        }
         
-        /* محاذاة البيانات وظهور الاسم على سطر واحد */
-        .card-info { text-align: right; flex: 1; padding-left: 2mm; direction: rtl; }
-        .card-info p { margin: 2mm 0; font-size: 11.5pt; font-weight: bold; color: #000; line-height: 1.2; text-align: right; white-space: nowrap; }
+        .card-info { 
+          text-align: right; 
+          flex: 1; 
+          min-width: 0; 
+          padding-left: 2mm; 
+          direction: rtl; 
+        }
+        .card-info p { 
+          margin: 1.5mm 0; 
+          font-size: 11pt; 
+          font-weight: bold; 
+          color: #000; 
+          line-height: 1.2; 
+          text-align: right; 
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
         .card-info p span { font-weight: 800; color: #111; }
         
-        /* ضبط مقاس الصورة إلى 2.25 سم × 3 سم بالضبط */
         .card-photo {
           width: 22.5mm; height: 30mm;
           border: 1.5px dashed #8A1C30;
           border-radius: 2mm; object-fit: cover;
           display: flex; align-items: center; justify-content: center;
           font-size: 8pt; color: #888; text-align: center; line-height: 1.2;
-          background: transparent; flex-shrink: 0;
+          background: transparent; 
+          flex-shrink: 0;
         }
         
         .card-footer {
           text-align: center; border-top: 1px dashed #F6C2C9;
-          padding-top: 1.5mm; font-size: 9.5pt; color: #8A1C30; font-weight: 800;
+          padding-top: 1mm; font-size: 9pt; color: #8A1C30; font-weight: 800;
         }
       </style>
     </head>
