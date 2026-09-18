@@ -790,6 +790,7 @@ function paintMeetingRows(filterText){
 }
 
 function fillSelect(select, options, currentValue){
+  if(!select) return;
   select.innerHTML = '';
   options.forEach(opt=>{
     const o = document.createElement('option');
@@ -947,12 +948,12 @@ function renderTable(){
     tdApp.appendChild(appInput); tr.appendChild(tdApp);
 
     const tdTotal = document.createElement('td'); tdTotal.className = 'total-cell';
-    tdTotal.textContent = calcTotal(row);
+    tdTotal.textContent = calcTotalRow(row);
     tr.appendChild(tdTotal);
 
     if(isWeek13){
       const tdWorkSum = document.createElement('td'); tdWorkSum.className = 'total-cell';
-      tdWorkSum.textContent = calcTotal(row);
+      tdWorkSum.textContent = calcTotalRow(row);
       tr.appendChild(tdWorkSum);
 
       const tdProject = document.createElement('td');
@@ -1146,12 +1147,14 @@ function printPledge(studentName, row){
   printWindow.document.close();
 }
 
-function calcTotal(row){
+function calcTotalRow(row){
+  if(!row) return '0 / 6';
   const t = attendScore(row.attend) + Number(row.participation||0) + Number(row.application||0);
   return (Math.round(t*10)/10).toString().replace(/\.0$/,'') + ' / 6';
 }
 
 function calcFinalTotal(row){
+  if(!row) return '0 / 30';
   const dailyWork = attendScore(row.attend) + Number(row.participation||0) + Number(row.application||0);
   const project = Number(row.project || 0);
   const exam = Number(row.exam || 0);
@@ -1160,9 +1163,9 @@ function calcFinalTotal(row){
 }
 
 function updateRowTotal(tr, row, isWeek13){
-  tr.children[5].textContent = calcTotal(row);
+  tr.children[5].textContent = calcTotalRow(row);
   if(isWeek13){
-    tr.children[6].textContent = calcTotal(row);
+    tr.children[6].textContent = calcTotalRow(row);
     tr.children[9].textContent = calcFinalTotal(row);
   }
 }
@@ -1410,7 +1413,6 @@ function uploadStudentPhoto(e, idx){
   reader.readAsDataURL(file);
 }
 
-// دالة ذكية لااختصار الاسم الرباعي بحذف الاسم الثالث إذا زاد عن 3 كلمات
 function formatCardName(fullName){
   if(!fullName) return '';
   const parts = fullName.trim().split(/\s+/);
@@ -1556,24 +1558,31 @@ function printAllCards(){
   printWindow.document.close();
 }
 
-/* ==================== مركز التقارير المصحح بالكامل ==================== */
+/* ==================== مركز التقارير ==================== */
 const reportsModal = document.getElementById('reportsModal');
 
 function openReportsModal(){
   const grade = GRADES.find(g=>g.id===currentGradeId);
-  document.getElementById('reportSectionName').textContent = grade.name + ' - ' + currentSection;
+  const secNameElem = document.getElementById('reportSectionName');
+  if(secNameElem) secNameElem.textContent = grade.name + ' - ' + currentSection;
   
   fillSelect(document.getElementById('reportWeekSelect'), WEEKS);
   fillSelect(document.getElementById('reportStudentSelect'), getSectionData().students);
 
-  document.getElementById('reportStartDate').value = todayStr();
-  document.getElementById('reportEndDate').value = todayStr();
+  const startElem = document.getElementById('reportStartDate');
+  const endElem = document.getElementById('reportEndDate');
+  if(startElem) startElem.value = todayStr();
+  if(endElem) endElem.value = todayStr();
 
-  document.getElementById('absenceReportResult').innerHTML = '';
-  reportsModal.classList.add('open');
+  const absenceElem = document.getElementById('absenceReportResult');
+  if(absenceElem) absenceElem.innerHTML = '';
+
+  if(reportsModal) reportsModal.classList.add('open');
 }
 
-function closeReportsModal(){ reportsModal.classList.remove('open'); }
+function closeReportsModal(){ 
+  if(reportsModal) reportsModal.classList.remove('open'); 
+}
 
 function getReportHeaderHTML(titleText){
   const minLogoHTML = ministryLogoData ? `<img src="${ministryLogoData}" style="width:20mm; height:20mm; object-fit:contain;">` : '<div style="width:20mm;"></div>';
@@ -1618,7 +1627,7 @@ function generateWeeklyReport(){
         <td>${statusStr}</td>
         <td>${row.participation} / 2</td>
         <td>${row.application} / 3</td>
-        <td>${calcTotal(row)}</td>
+        <td>${calcTotalRow(row)}</td>
         <td>${noteStr}</td>
         <td>${row.actionTaken || '—'}</td>
       </tr>
