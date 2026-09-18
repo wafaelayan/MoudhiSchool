@@ -82,7 +82,6 @@
   tbody tr:nth-child(even){ background:#FDF8F9; }
   tbody tr:hover{ background:#FADEE3; }
   
-  /* توسيع خانة اسم الطالبة ليظهر كامل دون اختفاء */
   td.name-cell{ text-align:right; font-weight:600; min-width:220px; width:220px; }
   td.name-cell input{ width:100%; border:1px solid transparent; background:transparent; font-family:inherit; font-size:15px; font-weight:600; padding:5px 6px; border-radius:6px; -webkit-appearance:none; }
   td.name-cell input:hover, td.name-cell input:focus{ border-color:var(--line); background:#fff; outline:none; }
@@ -131,6 +130,13 @@
   }
   .logo-upload-btn {
     font-size: 11px; background: var(--pink); color: #fff; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
+  }
+
+  /* ضَبظ جدول شاشة رفع بطاقات الطالبات ليناسب عرض الشاشة تماماً بدون سكرول إضافي */
+  #cardsListTable table {
+    width: 100% !important;
+    min-width: 100% !important;
+    table-layout: fixed;
   }
 
   .excel-upload-box {
@@ -352,7 +358,7 @@
       </div>
     </div>
 
-    <div id="cardsListTable" style="max-height: 250px; overflow-y: auto; margin-bottom: 15px;"></div>
+    <div id="cardsListTable" style="max-height: 250px; overflow-y: auto; overflow-x: hidden; margin-bottom: 15px;"></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeCardsModal()">إغلاق</button>
       <button class="btn btn-primary" onclick="printAllCards()">🖨️ طباعة كافة البطاقات (6×9 سم)</button>
@@ -1301,7 +1307,7 @@ function importNamesFromExcel(e){
   reader.readAsArrayBuffer(file);
 }
 
-/* ==================== بطاقات الطالبات ==================== */
+/* ==================== بطاقات الطالبات والتحسينات البصرية ==================== */
 const cardsModal = document.getElementById('cardsModal');
 
 let ministryLogoData = localStorage.getItem('custom_ministry_logo') || '';
@@ -1326,7 +1332,6 @@ function uploadLogo(type, e){
   reader.readAsDataURL(file);
 }
 
-// إخفاء/مسح الطالبة من الطباعة والبطاقات فقط مع الحفاظ عليها في كشف الدرجات الرئيسي
 function deleteStudentCard(studentName){
   if(!confirm(`هل أنتِ متأكدة من مسح بطاقة الطالبة (${studentName}) من قائمة الطباعة؟`)) return;
   const secData = getSectionData();
@@ -1351,13 +1356,14 @@ function openCardsModal(){
 
   const table = document.createElement('table');
   table.style.fontSize = '12px';
+  table.style.width = '100%';
   table.innerHTML = `
     <thead>
       <tr>
-        <th style="width:30px;">م</th>
+        <th style="width:28px;">م</th>
         <th>اسم الطالبة</th>
-        <th style="width:110px;">الصورة</th>
-        <th style="width:65px;">إجراء</th>
+        <th style="width:95px; text-align:center;">الصورة</th>
+        <th style="width:55px; text-align:center;">إجراء</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -1373,14 +1379,14 @@ function openCardsModal(){
 
     tr.innerHTML = `
       <td>${counter++}</td>
-      <td style="text-align:right; font-weight:bold; padding-right:10px;">${name}</td>
+      <td style="text-align:right; font-weight:bold; padding-right:6px;">${name}</td>
       <td style="text-align:center;">
         <input type="file" accept="image/*" onchange="uploadStudentPhoto(event, ${idx})" style="display:none;" id="photoFile_${idx}">
-        <button class="btn btn-outline" style="font-size:10px; padding:3px 6px;" onclick="document.getElementById('photoFile_${idx}').click()">📁 رفع صورة</button>
-        ${photoData ? '<span style="color:var(--green); font-size:10px; display:block; margin-top:2px;">✓ تم الرفع</span>' : ''}
+        <button class="btn btn-outline" style="font-size:10px; padding:3px 5px;" onclick="document.getElementById('photoFile_${idx}').click()">📁 رفع صورة</button>
+        ${photoData ? '<span style="color:var(--green); font-size:10px; display:block;">✓ تم</span>' : ''}
       </td>
       <td style="text-align:center;">
-        <button class="user-del-btn" onclick="deleteStudentCard('${name}')">مسح</button>
+        <button class="user-del-btn" style="padding:3px 6px; font-size:10.5px;" onclick="deleteStudentCard('${name}')">مسح</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -1406,6 +1412,17 @@ function uploadStudentPhoto(e, idx){
   reader.readAsDataURL(file);
 }
 
+// دالة ذكية لاختصار الاسم الرباعي وحذف الاسم الثالث إذا زاد عن 3 كلمات
+function formatCardName(fullName){
+  if(!fullName) return '';
+  const parts = fullName.trim().split(/\s+/);
+  if(parts.length >= 4){
+    // حذف الكلمة/الاسم الثالث (فهرس رقم 2)
+    parts.splice(2, 1);
+  }
+  return parts.join(' ');
+}
+
 function printAllCards(){
   const secData = getSectionData();
 
@@ -1418,6 +1435,7 @@ function printAllCards(){
     if(secData.hiddenCards && secData.hiddenCards.includes(name)) return;
 
     const photo = secData.photos[idx];
+    const shortName = formatCardName(name);
 
     cardsHTML += `
       <div class="student-card">
@@ -1425,14 +1443,15 @@ function printAllCards(){
           ${schLogoHTML}
           <div class="header-text">
             <h4>بطاقة طالبة</h4>
-            <div style="height:0.4em;"></div>
+            <div style="height:0.3em;"></div>
             <p>ثانوية موضي سلطان العيسى - بنات</p>
           </div>
           ${minLogoHTML}
         </div>
         <div class="card-body">
           <div class="card-info">
-            <p>الاسم: <span>${name}</span></p>
+            <p>الاسم: <span>${shortName}</span></p>
+            <div style="height:0.5em;"></div>
             <p>الصف: <span>${currentSection}</span></p>
           </div>
           ${photo ? `<img src="${photo}" class="card-photo">` : '<div class="card-photo">الصورة<br>الشخصية</div>'}
@@ -1478,7 +1497,7 @@ function printAllCards(){
         }
         .card-header .header-text { text-align: center; flex: 1; }
         .card-header .header-text h4 { margin: 0; font-family: 'Reem Kufi', sans-serif; font-size: 14pt; color: #8A1C30; font-weight: 700; line-height: 1.1; }
-        .card-header .header-text p { margin: 0; font-size: 7.5pt; color: #333; font-weight: bold; }
+        .card-header .header-text p { margin: 2px 0 0; font-size: 8.5pt; color: #333; font-weight: 800; }
         
         .card-body { 
           display: flex; 
@@ -1489,25 +1508,26 @@ function printAllCards(){
           box-sizing: border-box;
         }
         
+        /* تقريب البيانات الملتصقة لليمين وتصغير المسافة للصورة */
         .card-info { 
           text-align: right; 
           flex: 1; 
           min-width: 0; 
-          padding-left: 2mm; 
+          padding-left: 1mm; 
           direction: rtl; 
         }
         .card-info p { 
-          margin: 1.5mm 0; 
+          margin: 0; 
           font-size: 11pt; 
           font-weight: bold; 
           color: #000; 
           line-height: 1.2; 
           text-align: right; 
-          overflow: hidden;
-          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .card-info p span { font-weight: 800; color: #111; }
         
+        /* تحديد مقاس الصورة بـ 2.25 سم × 3 سم ثابت */
         .card-photo {
           width: 22.5mm; height: 30mm;
           border: 1.5px dashed #8A1C30;
