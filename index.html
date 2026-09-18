@@ -132,7 +132,6 @@
     font-size: 11px; background: var(--pink); color: #fff; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
   }
 
-  /* ضَبظ جدول شاشة رفع بطاقات الطالبات ليناسب عرض الشاشة تماماً بدون سكرول إضافي */
   #cardsListTable table {
     width: 100% !important;
     min-width: 100% !important;
@@ -369,7 +368,7 @@
 <div class="modal-overlay" id="reportsModal">
   <div class="modal" style="max-width:650px;">
     <h3>📊 مركز التقارير التفصيلية المتقدمة</h3>
-    <p>استخراج وتقارير متابعة لجميع الطالبات بالشكل العرضي الأنيق:</p>
+    <p>استخراج وتقارير متابعة لجميع الطالبات بالشكل العرضي الأنيق لشعبة: <strong id="reportSectionName"></strong></p>
 
     <div style="border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 12px;">
       <h4 style="margin: 0 0 6px; color: var(--pink-dark);">1. التقرير الأسبوعي للشعبة:</h4>
@@ -1060,7 +1059,6 @@ function renderTable(){
     tdAction.appendChild(actionBox);
     tr.appendChild(tdAction);
 
-    // البونص: إضافة درجة تلقائياً عند اختيار أي رمز شرفي
     const tdBadges = document.createElement('td');
     const badgeWrap = document.createElement('div'); badgeWrap.className = 'badge-cell';
 
@@ -1412,12 +1410,11 @@ function uploadStudentPhoto(e, idx){
   reader.readAsDataURL(file);
 }
 
-// دالة ذكية لاختصار الاسم الرباعي وحذف الاسم الثالث إذا زاد عن 3 كلمات
+// دالة ذكية لااختصار الاسم الرباعي بحذف الاسم الثالث إذا زاد عن 3 كلمات
 function formatCardName(fullName){
   if(!fullName) return '';
   const parts = fullName.trim().split(/\s+/);
   if(parts.length >= 4){
-    // حذف الكلمة/الاسم الثالث (فهرس رقم 2)
     parts.splice(2, 1);
   }
   return parts.join(' ');
@@ -1508,7 +1505,6 @@ function printAllCards(){
           box-sizing: border-box;
         }
         
-        /* تقريب البيانات الملتصقة لليمين وتصغير المسافة للصورة */
         .card-info { 
           text-align: right; 
           flex: 1; 
@@ -1527,7 +1523,6 @@ function printAllCards(){
         }
         .card-info p span { font-weight: 800; color: #111; }
         
-        /* تحديد مقاس الصورة بـ 2.25 سم × 3 سم ثابت */
         .card-photo {
           width: 22.5mm; height: 30mm;
           border: 1.5px dashed #8A1C30;
@@ -1561,7 +1556,7 @@ function printAllCards(){
   printWindow.document.close();
 }
 
-/* ==================== مركز التقارير ==================== */
+/* ==================== مركز التقارير المصحح بالكامل ==================== */
 const reportsModal = document.getElementById('reportsModal');
 
 function openReportsModal(){
