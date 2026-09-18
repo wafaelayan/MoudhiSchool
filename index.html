@@ -85,21 +85,16 @@
   td.name-cell input{ width:100%; border:1px solid transparent; background:transparent; font-family:inherit; font-size:15px; font-weight:600; padding:5px 6px; border-radius:6px; -webkit-appearance:none; }
   td.name-cell input:hover, td.name-cell input:focus{ border-color:var(--line); background:#fff; outline:none; }
   
-  .attend-cell { display:flex; flex-direction:column; align-items:center; gap:4px; }
-  select.attend{ font-family:inherit; font-size:12.5px; font-weight:700; padding:6px 4px; border-radius:8px; border:1px solid var(--line); cursor:pointer; width:100%; -webkit-appearance:none; }
+  /* تصغير خانة الحضور والتأخير */
+  .attend-cell { display:flex; flex-direction:column; align-items:center; gap:2px; width: 90px; margin: 0 auto; }
+  select.attend{ font-family:inherit; font-size:11px; font-weight:700; padding:4px 2px; border-radius:6px; border:1px solid var(--line); cursor:pointer; width:100%; -webkit-appearance:none; text-align: center; }
   select.attend.present{ background:var(--present); color:var(--present-ink); }
   select.attend.absent{ background:var(--absent); color:var(--absent-ink); }
   select.attend.late{ background:var(--late); color:var(--late-ink); }
-  .late-time-input { width: 100%; font-family: inherit; font-size: 13px; padding: 4px 5px; border-radius: 5px; border: 1px solid var(--gold); background: #fff; text-align: center; -webkit-appearance:none; }
+  .late-time-input { width: 100%; font-family: inherit; font-size: 10.5px; padding: 2px 4px; border-radius: 4px; border: 1px solid var(--gold); background: #fff; text-align: center; -webkit-appearance:none; }
 
   .num-input{ width:54px; font-family:inherit; font-size:15px; padding:6px 4px; border:1px solid var(--line); border-radius:7px; text-align:center; -webkit-appearance:none; }
   .num-input.wide{ width:62px; }
-  .participation-cell{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:110px; }
-  .p-symbols{ min-height:18px; font-size:14px; letter-spacing:2px; }
-  .p-buttons{ display:flex; gap:3px; }
-  .p-buttons button{ border:1px solid var(--line); background:#fff; border-radius:6px; font-size:12.5px; padding:3px 6px; cursor:pointer; }
-  .p-buttons button:hover{ background:#FADEE3; }
-  .p-buttons .clear-btn{ color:var(--red); font-size:10.5px; font-weight:700; }
   .total-cell{ font-weight:800; color:var(--pink-dark); font-size:13.5px; }
   
   .notes-box { display:flex; flex-direction:column; gap:4px; min-width:140px; }
@@ -109,6 +104,14 @@
   .action-box { display:flex; flex-direction:column; gap:4px; min-width:130px; }
   .btn-print-pledge { background:var(--red); color:#fff; border:none; border-radius:5px; font-size:11px; font-weight:bold; padding:5px 6px; cursor:pointer; margin-top:2px; }
   .btn-print-pledge:hover { background:#8A0017; }
+
+  /* العمود الأخير المخصص للشارات والرموز */
+  .badge-cell { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:110px; }
+  .p-symbols{ min-height:18px; font-size:14px; letter-spacing:2px; }
+  .p-buttons{ display:flex; gap:3px; }
+  .p-buttons button{ border:1px solid var(--line); background:#fff; border-radius:6px; font-size:12.5px; padding:3px 6px; cursor:pointer; }
+  .p-buttons button:hover{ background:#FADEE3; }
+  .p-buttons .clear-btn{ color:var(--red); font-size:10.5px; font-weight:700; }
 
   .row-num{ color:#9a9a9a; font-weight:700; }
   .footer-actions{ display:flex; justify-content:space-between; align-items:center; margin-top:14px; flex-wrap:wrap; gap:10px; }
@@ -359,25 +362,34 @@
 
 <div class="modal-overlay" id="reportsModal">
   <div class="modal" style="max-width:650px;">
-    <h3>📊 مركز التقارير التفصيلية</h3>
-    <p>اختاري نوع التقرير المطلوب استخراجه لشعبة: <strong id="reportSectionName"></strong></p>
+    <h3>📊 مركز التقارير التفصيلية المتقدمة</h3>
+    <p>استخراج وتقارير متابعة لجميع الطالبات بالشكل العرضي الأنيق:</p>
 
     <div style="border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 12px;">
-      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">1. السجل الفردي للطالبة (كشف حساب طالبة):</h4>
+      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">1. التقرير الأسبوعي للشعبة:</h4>
       <div style="display: flex; gap: 8px;">
-        <select id="reportStudentSelect" style="flex:1; padding: 8px; border-radius: 6px; border:1px solid var(--line);"></select>
-        <button class="btn btn-primary" onclick="generateStudentReport()">📄 استخراج السجل</button>
+        <select id="reportWeekSelect" style="flex:1; padding: 8px; border-radius: 6px; border:1px solid var(--line);"></select>
+        <button class="btn btn-primary" onclick="generateWeeklyReport()">📄 استخراج تقرير الأسبوع</button>
+      </div>
+    </div>
+
+    <div style="border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 12px;">
+      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">2. تقرير المتابعة الشامل (من تاريخ إلى تاريخ):</h4>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <label style="font-size: 11.5px;">من:</label>
+        <input type="date" id="reportStartDate" style="padding: 6px; border-radius: 6px; border:1px solid var(--line);">
+        <label style="font-size: 11.5px;">إلى:</label>
+        <input type="date" id="reportEndDate" style="padding: 6px; border-radius: 6px; border:1px solid var(--line);">
+        <button class="btn btn-primary" onclick="generateDateRangeReport()">📅 استخراج التقرير الزمني</button>
       </div>
     </div>
 
     <div>
-      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">2. تقرير الغياب التراكمي (إنذارات الغياب):</h4>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <label style="font-size: 12px;">حد الغياب (أيام فأكثر):</label>
-        <input type="number" id="absentThreshold" value="3" min="1" max="15" style="width: 60px; padding: 6px; margin: 0;">
-        <button class="btn btn-outline" onclick="generateAbsenceReport()">📋 حصر الغائبات</button>
+      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">3. السجل الفردي للطالبة:</h4>
+      <div style="display: flex; gap: 8px;">
+        <select id="reportStudentSelect" style="flex:1; padding: 8px; border-radius: 6px; border:1px solid var(--line);"></select>
+        <button class="btn btn-outline" onclick="generateStudentReport()">📄 كشف حساب الطالبة</button>
       </div>
-      <div id="absenceReportResult" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
     </div>
 
     <div class="modal-actions">
@@ -443,7 +455,7 @@ const GRADES = [
 ];
 
 const SECTIONS = {
-  g10:  ["10-1","10-2","10-3","10-4","10-5"],
+  g10:  ["عاشر 1","عاشر 2","عاشر 3","عاشر 4","عاشر 5","عاشر 6"],
   g11s: ["11 علمي - 1","11 علمي - 2","11 علمي - 3"],
   g11l: ["11 أدبي - 1","11 أدبي - 2","11 أدبي - 3"],
   g12s: ["12 علمي - 1","12 علمي - 2","12 علمي - 3"],
@@ -815,7 +827,7 @@ function renderTable(){
     <tr>
       <th style="width:36px;">م</th>
       <th style="width:150px;">اسم الطالبة</th>
-      <th style="min-width:110px;">الحضور<small>(1)</small></th>
+      <th style="width:90px;">الحضور<small>(1)</small></th>
       <th>المشاركة<small>(2)</small></th>
       <th>التطبيق العملي<small>(3)</small></th>
       <th>درجة الحصة<small>(6)</small></th>
@@ -827,6 +839,7 @@ function renderTable(){
       ` : ''}
       <th>الملاحظات والمخالفات</th>
       <th>الإجراء المتبع</th>
+      <th>الشارات والرموز</th>
     </tr>
   `;
 
@@ -862,7 +875,7 @@ function renderTable(){
 
     const lateInput = document.createElement('input');
     lateInput.type = 'text'; lateInput.className = 'late-time-input';
-    lateInput.placeholder = 'مدة التأخير (دقيقة)';
+    lateInput.placeholder = 'التأخير (دقيقة)';
     lateInput.value = row.lateMinutes;
     lateInput.style.display = (row.attend === 'late') ? 'block' : 'none';
 
@@ -876,12 +889,12 @@ function renderTable(){
       attendSelect.className = 'attend ' + row.attend;
       
       if(row.attend === 'present') {
-        row.participation = 2;
+        row.participation = (row.notesType && row.notesType !== "لا توجد ملاحظة") ? 1 : 2;
         row.application = 3;
         row.lateMinutes = "";
         lateInput.style.display = 'none';
       } else if(row.attend === 'late') {
-        row.participation = 2;
+        row.participation = (row.notesType && row.notesType !== "لا توجد ملاحظة") ? 1 : 2;
         row.application = 3;
         lateInput.style.display = 'block';
       } else if(row.attend === 'absent') {
@@ -906,9 +919,8 @@ function renderTable(){
     tdAttend.appendChild(attendWrap); 
     tr.appendChild(tdAttend);
 
+    // المشاركة الخالصة
     const tdPart = document.createElement('td');
-    const partWrap = document.createElement('div'); partWrap.className = 'participation-cell';
-
     const partInput = document.createElement('input');
     partInput.type = 'number'; partInput.min = 0; partInput.max = 2; partInput.step = 0.5;
     partInput.className = 'num-input part-input'; partInput.value = row.participation;
@@ -917,29 +929,7 @@ function renderTable(){
       row.participation = v; partInput.value = v;
       updateRowTotal(tr, row, isWeek13); scheduleSave();
     });
-
-    const symbolsDiv = document.createElement('div');
-    symbolsDiv.className = 'p-symbols';
-    symbolsDiv.textContent = row.participationSymbols;
-
-    const btnsDiv = document.createElement('div');
-    btnsDiv.className = 'p-buttons';
-    ['⭐','🏆','🔥'].forEach(sym=>{
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = sym;
-      b.addEventListener('click', ()=>{
-        row.participationSymbols = (row.participationSymbols ? row.participationSymbols + ' ' : '') + sym;
-        symbolsDiv.textContent = row.participationSymbols;
-        scheduleSave();
-      });
-      btnsDiv.appendChild(b);
-    });
-    const clearSymBtn = document.createElement('button');
-    clearSymBtn.type = 'button'; clearSymBtn.className = 'clear-btn'; clearSymBtn.textContent = 'مسح';
-    clearSymBtn.addEventListener('click', ()=>{ row.participationSymbols = ''; symbolsDiv.textContent = ''; scheduleSave(); });
-    btnsDiv.appendChild(clearSymBtn);
-
-    partWrap.appendChild(partInput); partWrap.appendChild(symbolsDiv); partWrap.appendChild(btnsDiv);
-    tdPart.appendChild(partWrap); tr.appendChild(tdPart);
+    tdPart.appendChild(partInput); tr.appendChild(tdPart);
 
     const tdApp = document.createElement('td');
     const appInput = document.createElement('input');
@@ -992,6 +982,7 @@ function renderTable(){
       tr.appendChild(tdFinalTotal);
     }
 
+    // خانة الملاحظات مع الخصم التلقائي لدرجة المشاركة
     const tdNotes = document.createElement('td');
     const notesBox = document.createElement('div'); notesBox.className = 'notes-box';
     
@@ -1008,10 +999,24 @@ function renderTable(){
     customInput.style.display = (row.notesType === 'مخالفات أخرى') ? 'block' : 'none';
 
     noteSelect.addEventListener('change', ()=>{
+      const prevNote = row.notesType;
       row.notesType = noteSelect.value;
       customInput.style.display = (row.notesType === 'مخالفات أخرى') ? 'block' : 'none';
+
+      // تطبيق الخصم التلقائي عند تسجيل ملاحظة وإعادتها عند الإلغاء
+      if(row.notesType !== "لا توجد ملاحظة" && prevNote === "لا توجد ملاحظة") {
+        row.participation = Math.max(0, row.participation - 1);
+      } else if(row.notesType === "لا توجد ملاحظة" && prevNote !== "لا توجد ملاحظة") {
+        row.participation = Math.min(2, row.participation + 1);
+      }
+
+      const partInp = tr.querySelector('.part-input');
+      if(partInp) partInp.value = row.participation;
+
+      updateRowTotal(tr, row, isWeek13);
       scheduleSave();
     });
+
     customInput.addEventListener('change', ()=>{
       row.customNote = customInput.value.trim();
       scheduleSave();
@@ -1051,6 +1056,35 @@ function renderTable(){
     actionBox.appendChild(pledgeBtn);
     tdAction.appendChild(actionBox);
     tr.appendChild(tdAction);
+
+    // نقل الرموز والشارات للعمود الأخير
+    const tdBadges = document.createElement('td');
+    const badgeWrap = document.createElement('div'); badgeWrap.className = 'badge-cell';
+
+    const symbolsDiv = document.createElement('div');
+    symbolsDiv.className = 'p-symbols';
+    symbolsDiv.textContent = row.participationSymbols;
+
+    const btnsDiv = document.createElement('div');
+    btnsDiv.className = 'p-buttons';
+    ['⭐','🏆','🔥'].forEach(sym=>{
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = sym;
+      b.addEventListener('click', ()=>{
+        row.participationSymbols = (row.participationSymbols ? row.participationSymbols + ' ' : '') + sym;
+        symbolsDiv.textContent = row.participationSymbols;
+        scheduleSave();
+      });
+      btnsDiv.appendChild(b);
+    });
+    const clearSymBtn = document.createElement('button');
+    clearSymBtn.type = 'button'; clearSymBtn.className = 'clear-btn'; clearSymBtn.textContent = 'مسح';
+    clearSymBtn.addEventListener('click', ()=>{ row.participationSymbols = ''; symbolsDiv.textContent = ''; scheduleSave(); });
+    btnsDiv.appendChild(clearSymBtn);
+
+    badgeWrap.appendChild(symbolsDiv);
+    badgeWrap.appendChild(btnsDiv);
+    tdBadges.appendChild(badgeWrap);
+    tr.appendChild(tdBadges);
 
     tbody.appendChild(tr);
   });
@@ -1160,7 +1194,7 @@ document.getElementById('markAllBtn').addEventListener('click', ()=>{
   const record = getRecord();
   record.rows.forEach(r=> {
     r.attend = 'present';
-    r.participation = 2;
+    r.participation = (r.notesType && r.notesType !== "لا توجد ملاحظة") ? 1 : 2;
     r.application = 3;
     r.lateMinutes = "";
   });
@@ -1264,7 +1298,7 @@ function importNamesFromExcel(e){
   reader.readAsArrayBuffer(file);
 }
 
-/* ==================== بطاقات الطالبات مع محاذاة اليمين وإتاحة الرفع اليدوي ==================== */
+/* ==================== بطاقات الطالبات ==================== */
 const cardsModal = document.getElementById('cardsModal');
 
 let ministryLogoData = localStorage.getItem('custom_ministry_logo') || '';
@@ -1361,9 +1395,7 @@ function uploadStudentPhoto(e, idx){
 
 function printAllCards(){
   const secData = getSectionData();
-  const grade = GRADES.find(g=>g.id===currentGradeId);
 
-  // إعداد الشعارات اليدوية المرفوعة إن وجدت، أو مساحة مخصصة لها
   const minLogoHTML = ministryLogoData ? `<img src="${ministryLogoData}" style="width:14mm; height:14mm; object-fit:contain; background:transparent;">` : '<div style="width:14mm; height:14mm;"></div>';
   const schLogoHTML = schoolLogoData ? `<img src="${schoolLogoData}" style="width:14mm; height:14mm; object-fit:contain; background:transparent;">` : '<div style="width:14mm; height:14mm;"></div>';
 
@@ -1386,8 +1418,7 @@ function printAllCards(){
         <div class="card-body">
           <div class="card-info">
             <p>الاسم: <span>${name}</span></p>
-            <p>الصف: <span>${grade.name}</span></p>
-            <p>الشعبة: <span>${currentSection}</span></p>
+            <p>الصف: <span>${currentSection}</span></p>
           </div>
           ${photo ? `<img src="${photo}" class="card-photo">` : '<div class="card-photo">الصورة<br>الشخصية</div>'}
         </div>
@@ -1434,13 +1465,10 @@ function printAllCards(){
         .card-header .header-text p { margin: 0; font-size: 8pt; color: #333; font-weight: bold; }
         
         .card-body { display: flex; justify-content: space-between; align-items: center; flex: 1; }
-        
-        /* محاذاة النص والبيانات لليمين بالكامل مع حجم خط 13 عريض */
         .card-info { text-align: right; flex: 1; padding-left: 2mm; direction: rtl; }
-        .card-info p { margin: 1.5mm 0; font-size: 13pt; font-weight: bold; color: #000; line-height: 1.3; text-align: right; }
+        .card-info p { margin: 2mm 0; font-size: 12pt; font-weight: bold; color: #000; line-height: 1.3; text-align: right; }
         .card-info p span { font-weight: 800; color: #111; }
         
-        /* إطار الصورة الشخصية بمقاس 2.5 سم × 3 سم */
         .card-photo {
           width: 25mm; height: 30mm;
           border: 1.5px dashed #8A1C30;
@@ -1473,21 +1501,207 @@ function printAllCards(){
   printWindow.document.close();
 }
 
-/* ==================== مركز التقارير ==================== */
+/* ==================== مركز التقارير المتقدم والشامل ==================== */
 const reportsModal = document.getElementById('reportsModal');
 
 function openReportsModal(){
   const grade = GRADES.find(g=>g.id===currentGradeId);
   document.getElementById('reportSectionName').textContent = grade.name + ' - ' + currentSection;
   
-  const studentSelect = document.getElementById('reportStudentSelect');
-  fillSelect(studentSelect, getSectionData().students);
+  fillSelect(document.getElementById('reportWeekSelect'), WEEKS);
+  fillSelect(document.getElementById('reportStudentSelect'), getSectionData().students);
+
+  document.getElementById('reportStartDate').value = todayStr();
+  document.getElementById('reportEndDate').value = todayStr();
 
   document.getElementById('absenceReportResult').innerHTML = '';
   reportsModal.classList.add('open');
 }
 
 function closeReportsModal(){ reportsModal.classList.remove('open'); }
+
+// ترويسة التقارير العريضة الرسمية (شعار الوزارة يمين - العنوان منتصف - شعار المدرسة يسار)
+function getReportHeaderHTML(titleText){
+  const minLogoHTML = ministryLogoData ? `<img src="${ministryLogoData}" style="width:20mm; height:20mm; object-fit:contain;">` : '<div style="width:20mm;"></div>';
+  const schLogoHTML = schoolLogoData ? `<img src="${schoolLogoData}" style="width:20mm; height:20mm; object-fit:contain;">` : '<div style="width:20mm;"></div>';
+  
+  return `
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #8A1C30; padding-bottom:10px; margin-bottom:15px;">
+      <div>${minLogoHTML}</div>
+      <div style="text-align:center;">
+        <h2 style="margin:0; color:#8A1C30; font-size:16pt;">دولة الكويت - وزارة التربية</h2>
+        <h3 style="margin:4px 0; color:#333; font-size:13pt;">ثانوية موضي سلطان العيسى بنات — قسم الحاسوب</h3>
+        <h4 style="margin:6px 0 0; color:#8A1C30; font-size:14pt; text-decoration:underline;">${titleText}</h4>
+      </div>
+      <div>${schLogoHTML}</div>
+    </div>
+  `;
+}
+
+// 1. استخراج التقرير الأسبوعي العريض
+function generateWeeklyReport(){
+  const weekVal = document.getElementById('reportWeekSelect').value;
+  const grade = GRADES.find(g=>g.id===currentGradeId);
+  const secData = getSectionData();
+  const records = secData.records;
+
+  let tableRows = '';
+  secData.students.forEach((studentName, idx)=>{
+    let foundRec = null;
+    Object.keys(records).forEach(k=>{
+      if(records[key]?.week === weekVal) foundRec = records[k];
+    });
+
+    const row = (foundRec && foundRec.rows && foundRec.rows[idx]) ? foundRec.rows[idx] : { attend:'present', participation:2, application:3, notesType:'لا توجد ملاحظة', actionTaken:'بدون إجراء' };
+
+    let statusStr = row.attend === 'present' ? 'حضور ✅' : (row.attend === 'late' ? `تأخير (${row.lateMinutes||'—'} دقيقة)` : 'غياب ❌');
+    let noteStr = (row.notesType && row.notesType !== 'لا توجد ملاحظة') ? row.notesType : '—';
+    if(row.notesType === 'مخالفات أخرى' && row.customNote) noteStr = row.customNote;
+
+    tableRows += `
+      <tr>
+        <td>${idx+1}</td>
+        <td style="text-align:right; font-weight:bold;">${studentName}</td>
+        <td>${statusStr}</td>
+        <td>${row.participation} / 2</td>
+        <td>${row.application} / 3</td>
+        <td>${calcTotal(row)}</td>
+        <td>${noteStr}</td>
+        <td>${row.actionTaken || '—'}</td>
+      </tr>
+    `;
+  });
+
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>التقرير الأسبوعي - ${currentSection} - ${weekVal}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+      <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        body { font-family: 'Tajawal', sans-serif; padding: 10px; background: #fff; direction: rtl; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #8A1C30; padding: 6px; text-align: center; font-size: 11pt; }
+        th { background: #FDF2F4; color: #8A1C30; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      ${getReportHeaderHTML(`دفتر المتابعة - ${grade.name} (${currentSection}) - من ${weekVal}`)}
+      <table>
+        <thead>
+          <tr>
+            <th>م</th>
+            <th>اسم الطالبة</th>
+            <th>الحضور والتأخير</th>
+            <th>المشاركة (2)</th>
+            <th>التطبيق العملي (3)</th>
+            <th>درجة الحصة (6)</th>
+            <th>الملاحظات والخصم</th>
+            <th>الإجراء المتخذ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  closeReportsModal();
+}
+
+// 2. استخراج التقرير الزمني العريض بين تاريخين لجميع الطالبات
+function generateDateRangeReport(){
+  const startD = document.getElementById('reportStartDate').value;
+  const endD = document.getElementById('reportEndDate').value;
+  const grade = GRADES.find(g=>g.id===currentGradeId);
+  const secData = getSectionData();
+  const records = secData.records;
+
+  const validDates = Object.keys(records).filter(d => d >= startD && d <= endD).sort();
+
+  let tableRows = '';
+  secData.students.forEach((studentName, idx)=>{
+    let absences = 0, lateCount = 0, totalPart = 0, totalApp = 0, totalCount = 0;
+    let notesArr = [];
+
+    validDates.forEach(d=>{
+      const r = records[d].rows[idx];
+      if(r){
+        if(r.attend === 'absent') absences++;
+        if(r.attend === 'late') lateCount++;
+        totalPart += Number(r.participation || 0);
+        totalApp += Number(r.application || 0);
+        totalCount++;
+
+        if(r.notesType && r.notesType !== 'لا توجد ملاحظة'){
+          notesArr.push(`${d}: ${r.notesType}`);
+        }
+      }
+    });
+
+    const avgPart = totalCount ? (Math.round((totalPart/totalCount)*10)/10) : 0;
+    const avgApp = totalCount ? (Math.round((totalApp/totalCount)*10)/10) : 0;
+
+    tableRows += `
+      <tr>
+        <td>${idx+1}</td>
+        <td style="text-align:right; font-weight:bold;">${studentName}</td>
+        <td>${absences} أيام</td>
+        <td>${lateCount} مرات</td>
+        <td>${avgPart} / 2</td>
+        <td>${avgApp} / 3</td>
+        <td style="text-align:right; font-size:9.5pt;">${notesArr.join(' | ') || 'لا توجد ملاحظات'}</td>
+      </tr>
+    `;
+  });
+
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>تقرير المتابعة من ${startD} إلى ${endD}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+      <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        body { font-family: 'Tajawal', sans-serif; padding: 10px; background: #fff; direction: rtl; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #8A1C30; padding: 6px; text-align: center; font-size: 11pt; }
+        th { background: #FDF2F4; color: #8A1C30; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      ${getReportHeaderHTML(`دفتر المتابعة من الفترة ${startD} إلى ${endD} — ${grade.name} (${currentSection})`)}
+      <table>
+        <thead>
+          <tr>
+            <th>م</th>
+            <th>اسم الطالبة</th>
+            <th>مجموع الغياب</th>
+            <th>مرات التأخير</th>
+            <th>متوسط المشاركة</th>
+            <th>متوسط التطبيق العملي</th>
+            <th>سجل الملاحظات والمخالفات المسجلة</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  closeReportsModal();
+}
 
 function generateStudentReport(){
   const studentIdx = document.getElementById('reportStudentSelect').selectedIndex;
@@ -1533,9 +1747,9 @@ function generateStudentReport(){
       <title>تقرير الطالبة - ${studentName}</title>
       <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
       <style>
-        body { font-family: 'Tajawal', sans-serif; padding: 20px; background: #fff; color: #000; }
+        @page { size: A4 landscape; margin: 10mm; }
+        body { font-family: 'Tajawal', sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
         .report-paper { border: 2px solid #8A1C30; padding: 20px; border-radius: 12px; }
-        .report-header { text-align: center; border-bottom: 2px solid #8A1C30; padding-bottom: 15px; margin-bottom: 20px; }
         .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; font-size: 14px; }
         .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .report-table th, .report-table td { border: 1px solid #777; padding: 8px; text-align: center; font-size: 12px; }
@@ -1544,11 +1758,7 @@ function generateStudentReport(){
     </head>
     <body>
       <div class="report-paper">
-        <div class="report-header">
-          <h3>دولة الكويت - وزارة التربية</h3>
-          <h3>ثانوية موضي سلطان العيسى بنات — قسم الحاسوب</h3>
-          <h4>السجل الفردي الحركي للطالبة (تقرير شامل)</h4>
-        </div>
+        ${getReportHeaderHTML(`السجل الفردي للطالبة: ${studentName}`)}
         <div class="report-grid">
           <div><strong>اسم الطالبة:</strong> ${studentName}</div>
           <div><strong>الصف والشعبة:</strong> ${grade.name} - ${currentSection}</div>
