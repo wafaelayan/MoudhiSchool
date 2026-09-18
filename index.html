@@ -1385,7 +1385,7 @@ function printAllCards(){
         </div>
         <div class="card-body">
           <div class="card-info">
-            <p>اسم الطالبة: <span>${name}</span></p>
+            <p>الاسم: <span>${name}</span></p>
             <p>الصف: <span>${grade.name}</span></p>
             <p>الشعبة: <span>${currentSection}</span></p>
           </div>
@@ -1435,9 +1435,9 @@ function printAllCards(){
         
         .card-body { display: flex; justify-content: space-between; align-items: center; flex: 1; }
         
-        /* محاذاة النص والبيانات لليمين بالكامل */
+        /* محاذاة النص والبيانات لليمين بالكامل مع حجم خط 13 عريض */
         .card-info { text-align: right; flex: 1; padding-left: 2mm; direction: rtl; }
-        .card-info p { margin: 1.5mm 0; font-size: 14pt; font-weight: bold; color: #000; line-height: 1.3; text-align: right; }
+        .card-info p { margin: 1.5mm 0; font-size: 13pt; font-weight: bold; color: #000; line-height: 1.3; text-align: right; }
         .card-info p span { font-weight: 800; color: #111; }
         
         /* إطار الصورة الشخصية بمقاس 2.5 سم × 3 سم */
