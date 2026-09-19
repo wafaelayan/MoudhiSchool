@@ -70,6 +70,11 @@
   .btn-outline{ background:#fff; color:var(--pink-dark); border:1px solid var(--pink-dark); }
   .btn-outline:hover{ background:#FDF2F4; }
 
+  .star-banner{ display:flex; align-items:center; gap:10px; background:linear-gradient(90deg, #FFF2F4, #FCE4E8); border:1px solid var(--rose); border-radius:14px; padding:12px 16px; margin-bottom:16px; flex-wrap:wrap; }
+  .star-banner .star-icon{ font-size:26px; }
+  .star-banner label{ font-weight:800; color:var(--pink-dark); font-size:14px; white-space:nowrap;}
+  .star-banner select{ font-family:inherit; font-size:15px; font-weight:700; color:var(--red); padding:8px 12px; border-radius:8px; border:1px solid var(--pink); background:#fff; flex:1; min-width:180px; -webkit-appearance:none; }
+
   .table-wrap{ background:#fff; border:1px solid var(--line); border-radius:14px; overflow-x:auto; width:100%; -webkit-overflow-scrolling:touch; margin-bottom:15px; }
   table{ width:100%; border-collapse:collapse; min-width:900px; }
   thead th{ background:var(--pink-dark); color:#fff; font-size:12px; font-weight:700; padding:10px 6px; text-align:center; white-space:nowrap; }
@@ -81,12 +86,42 @@
   td.name-cell{ text-align:right; font-weight:600; min-width:220px; width:220px; }
   td.name-cell input{ width:100%; border:1px solid transparent; background:transparent; font-family:inherit; font-size:15px; font-weight:600; padding:5px 6px; border-radius:6px; -webkit-appearance:none; }
 
+  .attend-cell { display:flex; flex-direction:column; align-items:center; gap:2px; width: 90px; margin: 0 auto; }
+  select.attend{ font-family:inherit; font-size:11px; font-weight:700; padding:4px 2px; border-radius:6px; border:1px solid var(--line); cursor:pointer; width:100%; -webkit-appearance:none; text-align: center; }
+  select.attend.present{ background:var(--present); color:var(--present-ink); }
+  select.attend.absent{ background:var(--absent); color:var(--absent-ink); }
+  select.attend.late{ background:var(--late); color:var(--late-ink); }
+
+  .num-input{ width:54px; font-family:inherit; font-size:15px; padding:6px 4px; border:1px solid var(--line); border-radius:7px; text-align:center; -webkit-appearance:none; }
+  .num-input.wide{ width:62px; }
+  .total-cell{ font-weight:800; color:var(--pink-dark); font-size:13.5px; }
+  
+  .notes-box { display:flex; flex-direction:column; gap:4px; min-width:140px; }
+  .notes-box select, .action-box select { font-family:inherit; font-size:13px; padding:5px; border-radius:6px; border:1px solid var(--line); background:#fff; width:100%; -webkit-appearance:none; }
+  
+  .badge-cell { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:110px; }
+  .p-symbols{ min-height:18px; font-size:14px; letter-spacing:2px; }
+  .p-buttons{ display:flex; gap:3px; }
+  .p-buttons button{ border:1px solid var(--line); background:#fff; border-radius:6px; font-size:12.5px; padding:3px 6px; cursor:pointer; }
+  .p-buttons button:hover{ background:#FADEE3; }
+  .p-buttons .clear-btn{ color:var(--red); font-size:10.5px; font-weight:700; }
+
   .row-num{ color:#9a9a9a; font-weight:700; }
   .footer-actions{ display:flex; justify-content:space-between; align-items:center; margin-top:14px; flex-wrap:wrap; gap:10px; }
 
   .modal-overlay{ position:fixed; inset:0; background:rgba(138,28,48,.55); display:none; align-items:center; justify-content:center; z-index:100; padding:15px; }
   .modal-overlay.open{ display:flex; }
   .modal{ background:#fff; border-radius:16px; padding:20px; max-width:550px; width:100%; border:2px solid var(--pink); max-height:90vh; overflow-y:auto; }
+  .modal h3{ margin:0 0 8px; color:var(--pink-dark); font-size:17px; }
+  .modal p{ font-size:13px; color:#6b6b6b; margin:0 0 12px; }
+  .modal textarea{ width:100%; min-height:180px; font-family:inherit; font-size:15px; border:1px solid var(--line); border-radius:10px; padding:10px; resize:vertical; -webkit-appearance:none; }
+  .modal input{ width:100%; font-family:inherit; font-size:15px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; margin-bottom:10px; -webkit-appearance:none; }
+  .modal .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }
+
+  #cardsListTable table { width: 100% !important; min-width: 100% !important; table-layout: fixed; }
+  .excel-upload-box { background: #FDF2F4; border: 2px dashed var(--pink); border-radius: 10px; padding: 12px; margin-bottom: 12px; text-align: center; }
+  .excel-upload-box label { display: inline-block; background: var(--pink); color: #fff; padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
+  .excel-upload-box input[type="file"] { display: none; }
 
   @media (max-width: 880px){
     .app{ flex-direction:column; }
@@ -229,11 +264,71 @@
           </table>
         </div>
       </div>
+
+      <!-- شاشة اجتماع أولياء الأمور -->
+      <div id="meetingView" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h2>👪 اجتماع أولياء الأمور</h2>
+            <div class="sub">تقرير غياب ودرجات كل طالبة حتى تاريخ الاجتماع</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="field"><label>الفترة الدراسية</label><select id="meetingTermSelect"></select></div>
+          <div class="field"><label>رقم الاجتماع</label><select id="meetingNumberSelect"></select></div>
+          <div class="field"><label>تاريخ الاجتماع</label><input type="date" id="meetingDateInput"></div>
+          <div class="field"><label>الصف</label><select id="meetingGradeSelect"></select></div>
+          <div class="field"><label>الشعبة</label><select id="meetingSectionSelect"></select></div>
+        </div>
+
+        <div class="controls" style="margin-bottom:10px;">
+          <div class="field" style="flex:1;">
+            <label>🔍 بحث عن طالبة</label>
+            <input type="text" id="meetingSearchInput" placeholder="اكتبي اسم الطالبة..." style="font-family:inherit; font-size:15px; padding:9px 12px; border-radius:8px; border:1px solid var(--line); width:100%;">
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px;">م</th>
+                <th style="width:170px;">اسم الطالبة</th>
+                <th>عدد مرات الغياب</th>
+                <th>متوسط المشاركة<small>(2)</small></th>
+                <th>متوسط التطبيق العملي<small>(3)</small></th>
+                <th style="min-width:220px;">ملاحظات ومخالفات مسجّلة</th>
+              </tr>
+            </thead>
+            <tbody id="meetingBody"></tbody>
+          </table>
+        </div>
+      </div>
     </main>
   </div>
 </div>
 
-<!-- نافذة إدارة الدروس المحدثة بدون أخطاء حفظ -->
+<!-- نافذة إدارة الأسماء المحدثة بمرونة -->
+<div class="modal-overlay" id="namesModal">
+  <div class="modal">
+    <h3>إدارة أسماء طالبات: <span id="modalGradeName"></span></h3>
+    <div class="excel-upload-box">
+      <span style="display:block; font-size:12px; margin-bottom:6px; color:#444;">استيراد القائمة من ملف Excel أو CSV:</span>
+      <label for="excelFileInput">📁 اختر ملف إكسيل</label>
+      <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" onchange="importNamesFromExcel(event)">
+      <span id="excelFileName" style="display:block; font-size:11px; color:#666; margin-top:5px;"></span>
+    </div>
+    <p>أو الصقي الأسماء (اسم في كل سطر) — خاصة بهذه الشعبة فقط.</p>
+    <textarea id="namesTextarea"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeNamesModal()">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveNames()">حفظ الأسماء</button>
+    </div>
+  </div>
+</div>
+
+<!-- نافذة إدارة الدروس -->
 <div class="modal-overlay" id="lessonsModal">
   <div class="modal">
     <h3>إدارة دروس: <span id="modalLessonsGrade"></span></h3>
@@ -246,33 +341,35 @@
   </div>
 </div>
 
-<!-- مركز التقارير الشامل المحدث -->
+<!-- مركز التقارير الشامل -->
 <div class="modal-overlay" id="reportsModal">
-  <div class="modal" style="max-width:700px;">
+  <div class="modal" style="max-width:750px;">
     <h3>📊 مركز التقارير المتقدم والتفصيلي</h3>
-    <p>استخراج تقارير المتابعة للشعبة الحالية: <strong id="reportSectionName"></strong></p>
+    <p>استخراج تقارير المتابعة لشعبة: <strong id="reportSectionName"></strong></p>
 
     <div style="border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 12px;">
-      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">1. التقرير الشامل الممتد (من أسبوع إلى أسبوع):</h4>
+      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">1. تقرير الأعمال الأسبوعي (من أسبوع إلى أسبوع) بالتفصيل:</h4>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <label style="font-size: 11.5px;">من أسبوع:</label>
         <select id="reportStartWeek" style="padding: 6px; border-radius: 6px; border:1px solid var(--line);"></select>
         <label style="font-size: 11.5px;">إلى أسبوع:</label>
         <select id="reportEndWeek" style="padding: 6px; border-radius: 6px; border:1px solid var(--line);"></select>
-        <button class="btn btn-primary" onclick="generateWeekRangeReport()">📋 استخراج التقرير الشامل بالكامل</button>
+        <button class="btn btn-primary" onclick="generateDetailedWeekRangeReport()">📋 استخراج تقرير الأعمال الأسبوعي بالتفصيل</button>
       </div>
     </div>
 
     <div style="border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 12px;">
-      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">2. تقرير أسبوع محدد:</h4>
-      <div style="display: flex; gap: 8px;">
-        <select id="reportWeekSelect" style="flex:1; padding: 8px; border-radius: 6px; border:1px solid var(--line);"></select>
-        <button class="btn btn-outline" onclick="generateWeeklyReport()">📄 استخراج كشف الأسبوع</button>
-      </div>
+      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">2. تقرير المخالفات والملاحظات بالتاريخ واليوم:</h4>
+      <button class="btn btn-outline" onclick="generateViolationsReport()">🚨 حصر الطالبات المخالفات</button>
+    </div>
+
+    <div style="border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 12px;">
+      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">3. تقرير الطالبات الحاصلات على البونص بالتاريخ واليوم:</h4>
+      <button class="btn btn-outline" onclick="generateBonusReport()">⭐ حصر البونص والشارات</button>
     </div>
 
     <div>
-      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">3. السجل الفردي للطالبة:</h4>
+      <h4 style="margin: 0 0 6px; color: var(--pink-dark);">4. السجل الفردي للطالبة:</h4>
       <div style="display: flex; gap: 8px;">
         <select id="reportStudentSelect" style="flex:1; padding: 8px; border-radius: 6px; border:1px solid var(--line);"></select>
         <button class="btn btn-outline" onclick="generateStudentReport()">📄 كشف حساب الطالبة</button>
@@ -300,6 +397,15 @@ function gsRun(fn, ...args){
     if(data.error) throw new Error(data.error);
     return data.result;
   });
+}
+
+function formatThreePartName(fullName){
+  if(!fullName) return '';
+  const parts = fullName.trim().split(/\s+/);
+  if(parts.length > 3){
+    return `${parts[0]} ${parts[1]} ${parts[parts.length - 1]}`;
+  }
+  return parts.join(' ');
 }
 
 const GRADES = [
@@ -353,6 +459,7 @@ let currentSection = SECTIONS[GRADES[0].id][0];
 let currentDate = todayStr();
 let store = {};
 let saveTimer = null;
+let leaveLogs = [];
 
 function todayStr(){
   const d = new Date();
@@ -373,9 +480,205 @@ function defaultRecord(selectedWeek){
 }
 
 function sectionKey(gradeId, section){ return `section-data:${gradeId}:${section}`; }
-function lessonsKey(gradeId){ return `lessons:${gradeId}`; }
 
-// إصلاح حفظ الدروس آمن ومباشر دون أخطاء اتصال
+function openReportsModal(){
+  const grade = GRADES.find(g=>g.id===currentGradeId);
+  const secNameElem = document.getElementById('reportSectionName');
+  if(secNameElem) secNameElem.textContent = grade.name + ' - ' + currentSection;
+  
+  fillSelect(document.getElementById('reportStartWeek'), WEEKS, WEEKS[0]);
+  fillSelect(document.getElementById('reportEndWeek'), WEEKS, WEEKS[12]);
+  fillSelect(document.getElementById('reportStudentSelect'), getSectionData().students);
+
+  const reportsModalElem = document.getElementById('reportsModal');
+  if(reportsModalElem) reportsModalElem.classList.add('open');
+}
+
+function closeReportsModal(){ 
+  const reportsModalElem = document.getElementById('reportsModal');
+  if(reportsModalElem) reportsModalElem.classList.remove('open'); 
+}
+
+function getReportHeaderHTML(titleText){
+  const minLogoHTML = localStorage.getItem('custom_ministry_logo') ? `<img src="${localStorage.getItem('custom_ministry_logo')}" style="width:18mm; height:18mm; object-fit:contain;">` : '<div style="width:18mm;"></div>';
+  const schLogoHTML = localStorage.getItem('custom_school_logo') ? `<img src="${localStorage.getItem('custom_school_logo')}" style="width:18mm; height:18mm; object-fit:contain;">` : '<div style="width:18mm;"></div>';
+  
+  return `
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #8A1C30; padding-bottom:6px; margin-bottom:10px;">
+      <div>${minLogoHTML}</div>
+      <div style="text-align:center;">
+        <h2 style="margin:0; color:#8A1C30; font-size:15pt;">دفتر المتابعة للعام الدراسي 2026-2027</h2>
+        <h3 style="margin:3px 0; color:#333; font-size:12pt;">ثانوية موضي سلطان العيسى بنات — قسم الحاسوب</h3>
+        <h4 style="margin:4px 0 0; color:#8A1C30; font-size:13pt; text-decoration:underline;">${titleText}</h4>
+      </div>
+      <div>${schLogoHTML}</div>
+    </div>
+  `;
+}
+
+// 1. تقرير الأعمال الأسبوعي الممتد بالتفصيل مع إدراج مجموع الأعمال للأسبوع 13
+function generateDetailedWeekRangeReport(){
+  const startW = document.getElementById('reportStartWeek').value;
+  const endW = document.getElementById('reportEndWeek').value;
+  const grade = GRADES.find(g=>g.id===currentGradeId);
+  const secData = getSectionData();
+  const records = secData.records;
+
+  const startIdx = WEEKS.indexOf(startW);
+  const endIdx = WEEKS.indexOf(endW);
+  const selectedWeeks = WEEKS.slice(startIdx, endIdx + 1);
+  const includesWeek13 = selectedWeeks.includes("الأسبوع 13");
+
+  let headerTop = `<tr><th rowspan="2" style="width:25px;">م</th><th rowspan="2" style="min-width:160px;">اسم الطالبة</th>`;
+  let headerSub = `<tr>`;
+
+  selectedWeeks.forEach(w=>{
+    headerTop += `<th colspan="3" style="border-left:2px solid #8A1C30;">${w}</th>`;
+    headerSub += `<th>حضور (1)</th><th>مشاركة (2)</th><th style="border-left:2px solid #8A1C30;">تطبيق (3)</th>`;
+  });
+
+  if(includesWeek13){
+    headerTop += `<th rowspan="2" style="background:#8A1C30; color:#fff; width:65px;">مجموع الأعمال (6)</th>`;
+  }
+
+  headerTop += `</tr>`;
+  headerSub += `</tr>`;
+
+  let tableRows = '';
+  secData.students.forEach((studentName, studentIdx)=>{
+    const shortName = formatThreePartName(studentName);
+    tableRows += `<tr><td>${studentIdx+1}</td><td style="text-align:right; font-weight:bold; padding-right:6px;">${shortName}</td>`;
+    
+    let totalAllWeeks = 0, countWeeks = 0;
+
+    selectedWeeks.forEach(w=>{
+      let foundRecKey = Object.keys(records).find(k=> records[k]?.week === w);
+      if(foundRecKey && records[foundRecKey].rows[studentIdx]){
+        const r = records[foundRecKey].rows[studentIdx];
+        const att = attendScore(r.attend);
+        const part = Number(r.participation||0);
+        const app = Number(r.application||0);
+        const wTotal = att + part + app;
+        
+        totalAllWeeks += wTotal; countWeeks++;
+
+        const attStyle = att < 1 ? 'background-color:#FADBD8; color:#7A1F2B; font-weight:bold;' : '';
+        const partStyle = part < 2 ? 'background-color:#FADBD8; color:#7A1F2B; font-weight:bold;' : '';
+        const appStyle = app < 3 ? 'background-color:#FADBD8; color:#7A1F2B; font-weight:bold; border-left:2px solid #8A1C30;' : 'border-left:2px solid #8A1C30;';
+
+        tableRows += `<td style="${attStyle}">${att}</td><td style="${partStyle}">${part}</td><td style="${appStyle}">${app}</td>`;
+      } else {
+        tableRows += `<td>—</td><td>—</td><td style="border-left:2px solid #8A1C30;">—</td>`;
+      }
+    });
+
+    if(includesWeek13){
+      const finalAvgWork = countWeeks > 0 ? (Math.round((totalAllWeeks/countWeeks)*10)/10) : 6;
+      tableRows += `<td style="font-weight:bold; background:#FDF2F4; color:#8A1C30; font-size:9.5pt;">${finalAvgWork} / 6</td>`;
+    }
+
+    tableRows += `</tr>`;
+  });
+
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>تقرير الأعمال الأسبوعي - ${startW} إلى ${endW}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+      <style>
+        @page { size: A4 landscape; margin: 6mm; }
+        body { font-family: 'Tajawal', sans-serif; padding: 5px; background: #fff; direction: rtl; }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+        th, td { border: 1px solid #8A1C30; padding: 4px; text-align: center; font-size: 8.5pt; }
+        th { background: #FDF2F4; color: #8A1C30; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      ${getReportHeaderHTML(`تقرير الأعمال الأسبوعي التفصيلي - ${grade.name} (${currentSection}) — من ${startW} إلى ${endW}`)}
+      <table>
+        <thead>${headerTop}${headerSub}</thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  closeReportsModal();
+}
+
+// تصدير درجات الفترة الحالية مباشرة إلى Excel بدون أخطاء
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const grade = GRADES.find(g=>g.id===currentGradeId);
+  const secData = getSectionData();
+  const records = secData.records;
+
+  const exportData = secData.students.map((studentName, idx)=>{
+    let studentRow = { "اسم الطالبة": studentName };
+    WEEKS.forEach(w=>{
+      let foundKey = Object.keys(records).find(k=> records[k]?.week === w);
+      if(foundKey && records[foundKey].rows[idx]){
+        const r = records[foundKey].rows[idx];
+        studentRow[w] = attendScore(r.attend) + Number(r.participation||0) + Number(r.application||0);
+      } else {
+        studentRow[w] = "—";
+      }
+    });
+    return studentRow;
+  });
+
+  const ws = XLSX.utils.json_to_sheet(exportData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "درجات الفترة");
+  XLSX.writeFile(wb, `درجات_${grade.name}_${currentSection}.xlsx`);
+  document.getElementById('saveIndicator').textContent = 'تم تنزيل ملف الدرجات Excel بنجاح ✓';
+});
+
+// إدارة وتعديل أسماء الطالبات المرن
+const namesModal = document.getElementById('namesModal');
+document.getElementById('manageNamesBtn').addEventListener('click', ()=>{
+  document.getElementById('modalGradeName').textContent = GRADES.find(g=>g.id===currentGradeId).name + ' - شعبة ' + currentSection;
+  document.getElementById('namesTextarea').value = getSectionData().students.join('\n');
+  namesModal.classList.add('open');
+});
+function closeNamesModal(){ namesModal.classList.remove('open'); }
+
+function saveNames(){
+  const lines = document.getElementById('namesTextarea').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const students = getSectionData().students;
+  for(let i=0; i<STUDENT_COUNT; i++){
+    if(lines[i]) students[i] = lines[i];
+  }
+  closeNamesModal();
+  renderPage();
+  scheduleSave();
+  document.getElementById('saveIndicator').textContent = 'تم تحديث أسماء الطالبات ✓';
+}
+
+function importNamesFromExcel(e){
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+      let names = [];
+      json.forEach(r => { if(r && r[0]) names.push(String(r[0]).trim()); });
+      if(names.length > 0){
+        document.getElementById('namesTextarea').value = names.slice(0, STUDENT_COUNT).join('\n');
+      }
+    } catch(err) { alert("تعذرت قراءة الملف."); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// إدارة الدروس وحفظها
 const lessonsModal = document.getElementById('lessonsModal');
 document.getElementById('manageLessonsBtn').addEventListener('click', ()=>{
   document.getElementById('modalLessonsGrade').textContent = GRADES.find(g=>g.id===currentGradeId).name;
@@ -392,7 +695,57 @@ function saveLessons(){
   closeLessonsModal();
   renderPage();
   scheduleSave();
-  document.getElementById('saveIndicator').textContent = 'تم حفظ الدروس بنجاح ✓';
+  document.getElementById('saveIndicator').textContent = 'تم حفظ قائمة الدروس ✓';
+}
+
+// تفعيل تبويب اجتماع أولياء الأمور
+function switchToMeetingView(){
+  currentView = 'meeting';
+  document.getElementById('attendanceView').style.display = 'none';
+  document.getElementById('leaveView').style.display = 'none';
+  document.getElementById('meetingView').style.display = 'block';
+  
+  fillSelect(document.getElementById('meetingTermSelect'), TERMS);
+  fillSelect(document.getElementById('meetingNumberSelect'), ["اجتماع 1", "اجتماع 2", "اجتماع 3"]);
+  fillSelect(document.getElementById('meetingGradeSelect'), GRADES.map(g=>({value:g.id, label:g.name})), currentGradeId);
+  fillSelect(document.getElementById('meetingSectionSelect'), SECTIONS[currentGradeId], currentSection);
+  document.getElementById('meetingDateInput').value = todayStr();
+
+  renderMeetingTable();
+}
+
+function renderMeetingTable(){
+  const tbody = document.getElementById('meetingBody');
+  tbody.innerHTML = '';
+  const students = getSectionData().students;
+  const records = getSectionData().records;
+
+  students.forEach((studentName, idx)=>{
+    let absences = 0, totalPart = 0, totalApp = 0, count = 0;
+    Object.keys(records).forEach(k=>{
+      const r = records[k].rows[idx];
+      if(r){
+        if(r.attend === 'absent') absences++;
+        totalPart += Number(r.participation||0);
+        totalApp += Number(r.application||0);
+        count++;
+      }
+    });
+
+    const avgPart = count ? (Math.round((totalPart/count)*10)/10) : 0;
+    const avgApp = count ? (Math.round((totalApp/count)*10)/10) : 0;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${idx+1}</td>
+      <td style="text-align:right; font-weight:bold;">${studentName}</td>
+      <td style="color:${absences>0?'var(--red)':'inherit'}; font-weight:bold;">${absences} أيام</td>
+      <td>${avgPart} / 2</td>
+      <td>${avgApp} / 3</td>
+      <td style="text-align:right;">متابعة منتظمة</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 function fillSelect(select, options, currentValue){
@@ -470,6 +823,7 @@ async function switchGrade(gradeId){
   currentSection = SECTIONS[gradeId][0];
   document.getElementById('attendanceView').style.display = 'block';
   document.getElementById('leaveView').style.display = 'none';
+  document.getElementById('meetingView').style.display = 'none';
   renderSidebar();
   await fetchSingleSection(currentGradeId, currentSection);
   renderPage();
@@ -485,7 +839,6 @@ function renderPage(){
   const record = getRecord();
   fillSelect(document.getElementById('termSelect'), TERMS, record.term);
   fillSelect(document.getElementById('weekSelect'), WEEKS, record.week);
-  
   fillSelect(document.getElementById('lessonSelect'), store[currentGradeId].lessons, record.lesson);
 
   const students = getSectionData().students;
@@ -510,7 +863,6 @@ function renderTable(){
       <th style="width:90px;">الحضور<small>(1)</small></th>
       <th>المشاركة<small>(2)</small></th>
       <th>التطبيق العملي<small>(3)</small></th>
-      <th>درجة الحصة<small>(6)</small></th>
       ${isWeek13 ? `
         <th>متوسط أعمال الـ12 أسبوع<small>(6)</small></th>
         <th>المشروع<small>(4)</small></th>
@@ -565,15 +917,52 @@ function renderTable(){
     appInput.addEventListener('change', ()=>{ row.application = parseFloat(appInput.value)||0; scheduleSave(); });
     tdApp.appendChild(appInput); tr.appendChild(tdApp);
 
-    const tdTotal = document.createElement('td'); tdTotal.className = 'total-cell';
-    const t = attendScore(row.attend) + Number(row.participation||0) + Number(row.application||0);
-    tdTotal.textContent = `${t}/6`;
-    tr.appendChild(tdTotal);
+    if(isWeek13){
+      const avgWorkScore = calculatePreviousWeeksAverage(idx);
+
+      const tdWorkAvg = document.createElement('td'); tdWorkAvg.className = 'total-cell';
+      tdWorkAvg.textContent = `${avgWorkScore} / 6`;
+      tr.appendChild(tdWorkAvg);
+
+      const tdProject = document.createElement('td');
+      const projectInput = document.createElement('input');
+      projectInput.type = 'number'; projectInput.className = 'num-input wide'; projectInput.min = 0; projectInput.max = 4; projectInput.step = 0.5;
+      projectInput.value = row.project; projectInput.placeholder = '-';
+      projectInput.addEventListener('change', ()=>{ row.project = parseFloat(projectInput.value)||0; scheduleSave(); });
+      tdProject.appendChild(projectInput); tr.appendChild(tdProject);
+
+      const tdExam = document.createElement('td');
+      const examInput = document.createElement('input');
+      examInput.type = 'number'; examInput.className = 'num-input wide'; examInput.min = 0; examInput.max = 20; examInput.step = 0.5;
+      examInput.value = row.exam; examInput.placeholder = '-';
+      examInput.addEventListener('change', ()=>{ row.exam = parseFloat(examInput.value)||0; scheduleSave(); });
+      tdExam.appendChild(examInput); tr.appendChild(tdExam);
+
+      const tdFinalTotal = document.createElement('td');
+      tdFinalTotal.className = 'total-cell'; tdFinalTotal.style.color = 'var(--red)';
+      const finalScore = avgWorkScore + Number(row.project||0) + Number(row.exam||0);
+      tdFinalTotal.textContent = `${finalScore} / 30`;
+      tr.appendChild(tdFinalTotal);
+    }
 
     const tdNotes = document.createElement('td');
     const noteSelect = document.createElement('select');
     NOTE_OPTIONS.forEach(opt=>{ const o = document.createElement('option'); o.value = opt; o.textContent = opt; noteSelect.appendChild(o); });
     noteSelect.value = row.notesType;
+    
+    noteSelect.addEventListener('change', ()=>{
+      const prevNote = row.notesType;
+      row.notesType = noteSelect.value;
+      if(row.notesType !== "لا توجد ملاحظة" && prevNote === "لا توجد ملاحظة") {
+        row.participation = Math.max(0, row.participation - 1);
+      } else if(row.notesType === "لا توجد ملاحظة" && prevNote !== "لا توجد ملاحظة") {
+        row.participation = Math.min(2, row.participation + 1);
+      }
+      partInput.value = row.participation;
+      scheduleSave();
+      renderTable();
+    });
+    
     tdNotes.appendChild(noteSelect); tr.appendChild(tdNotes);
 
     const tdAction = document.createElement('td');
@@ -583,11 +972,119 @@ function renderTable(){
     tdAction.appendChild(actionSelect); tr.appendChild(tdAction);
 
     const tdBadges = document.createElement('td');
-    tdBadges.textContent = row.participationSymbols || '—';
+    const badgeWrap = document.createElement('div'); badgeWrap.className = 'badge-cell';
+
+    const symbolsDiv = document.createElement('div');
+    symbolsDiv.className = 'p-symbols';
+    symbolsDiv.textContent = row.participationSymbols;
+
+    const btnsDiv = document.createElement('div');
+    btnsDiv.className = 'p-buttons';
+    ['⭐','🏆','🔥'].forEach(sym=>{
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = sym;
+      b.addEventListener('click', ()=>{
+        row.participationSymbols = (row.participationSymbols ? row.participationSymbols + ' ' : '') + sym;
+        symbolsDiv.textContent = row.participationSymbols;
+        row.participation = Math.min(2, Number(row.participation || 0) + 1);
+        partInput.value = row.participation;
+        scheduleSave();
+        renderTable();
+      });
+      btnsDiv.appendChild(b);
+    });
+    const clearSymBtn = document.createElement('button');
+    clearSymBtn.type = 'button'; clearSymBtn.className = 'clear-btn'; clearSymBtn.textContent = 'مسح';
+    clearSymBtn.addEventListener('click', ()=>{ row.participationSymbols = ''; symbolsDiv.textContent = ''; scheduleSave(); });
+    btnsDiv.appendChild(clearSymBtn);
+
+    badgeWrap.appendChild(symbolsDiv);
+    badgeWrap.appendChild(btnsDiv);
+    tdBadges.appendChild(badgeWrap);
     tr.appendChild(tdBadges);
 
     tbody.appendChild(tr);
   });
+}
+
+function switchToLeaveView(){
+  document.getElementById('attendanceView').style.display = 'none';
+  document.getElementById('meetingView').style.display = 'none';
+  document.getElementById('leaveView').style.display = 'block';
+  fillSelect(document.getElementById('leaveGradeSelect'), GRADES.map(g=>({value:g.id, label:g.name})), currentGradeId);
+  updateLeaveSectionOptions();
+}
+
+function updateLeaveSectionOptions(){
+  const gId = document.getElementById('leaveGradeSelect').value;
+  fillSelect(document.getElementById('leaveSectionSelect'), SECTIONS[gId], SECTIONS[gId][0]);
+  updateLeaveStudentOptions();
+}
+
+function updateLeaveStudentOptions(){
+  const gId = document.getElementById('leaveGradeSelect').value;
+  const sec = document.getElementById('leaveSectionSelect').value;
+  const students = (store[gId] && store[gId].sections[sec]) ? store[gId].sections[sec].students : defaultStudents();
+  fillSelect(document.getElementById('leaveStudentSelect'), students);
+}
+
+function issueLeavePass(){
+  const gId = document.getElementById('leaveGradeSelect').value;
+  const gradeName = GRADES.find(g=>g.id===gId).name;
+  const sec = document.getElementById('leaveSectionSelect').value;
+  const student = document.getElementById('leaveStudentSelect').value;
+  const reason = document.getElementById('leaveReasonSelect').value;
+  
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('ar-KW', { hour: '2-digit', minute: '2-digit' });
+
+  const logItem = {
+    id: Date.now(),
+    student,
+    gradeName,
+    sec,
+    reason,
+    outTime: timeStr,
+    outTimestamp: now.getTime(),
+    inTime: null,
+    duration: 'جاري الخروج...'
+  };
+
+  leaveLogs.unshift(logItem);
+  renderLeaveTable();
+}
+
+function renderLeaveTable(){
+  const tbody = document.getElementById('leavePassTableBody');
+  tbody.innerHTML = '';
+
+  leaveLogs.forEach((item, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${idx+1}</td>
+      <td style="font-weight:bold; text-align:right;">${item.student}</td>
+      <td>${item.gradeName} (${item.sec})</td>
+      <td>الحصة الحالية</td>
+      <td>${item.reason}</td>
+      <td>${item.outTime}</td>
+      <td>${item.inTime || '—'}</td>
+      <td style="font-weight:bold;">${item.duration}</td>
+      <td>
+        ${!item.inTime ? `<button class="btn btn-outline" style="font-size:10px; padding:3px 6px;" onclick="registerReturn(${item.id})">🛑 تسجيل العودة</button>` : '✅ اكتمل'}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function registerReturn(id){
+  const item = leaveLogs.find(l=>l.id === id);
+  if(item){
+    const now = new Date();
+    item.inTime = now.toLocaleTimeString('ar-KW', { hour: '2-digit', minute: '2-digit' });
+    const diffMins = Math.floor((now.getTime() - item.outTimestamp) / 60000);
+    item.duration = `${diffMins} دقيقة`;
+    renderLeaveTable();
+  }
 }
 
 function getSectionData(){ return store[currentGradeId].sections[currentSection]; }
@@ -618,6 +1115,23 @@ async function saveSectionData(gradeId, section){
     await gsRun('setData', token, sectionKey(gradeId, section), JSON.stringify(store[gradeId].sections[section]));
     document.getElementById('saveIndicator').textContent = 'تم الحفظ بنجاح ✓';
   }catch(e){ document.getElementById('saveIndicator').textContent = 'خطأ في الحفظ!'; }
+}
+
+function calculatePreviousWeeksAverage(studentIdx){
+  const records = getSectionData().records;
+  let totalScore = 0, count = 0;
+
+  for(let i=0; i<12; i++){
+    const weekName = WEEKS[i];
+    const recKey = Object.keys(records).find(k => records[k]?.week === weekName);
+    if(recKey && records[recKey].rows[studentIdx]){
+      const r = records[recKey].rows[studentIdx];
+      totalScore += attendScore(r.attend) + Number(r.participation||0) + Number(r.application||0);
+      count++;
+    }
+  }
+
+  return count > 0 ? (Math.round((totalScore / count) * 10) / 10) : 6;
 }
 
 boot();
