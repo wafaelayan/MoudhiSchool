@@ -278,56 +278,6 @@
   </div>
 </div>
 
-<div id="affairsScreen" style="display:none; width:100%;">
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="badge"><img id="affLogoImg" alt="شعار المدرسة"></div>
-        <h1>ثانوية موضي سلطان العيسى</h1>
-        <p>شؤون الطلبة</p>
-        <div class="designer-signature">✨ تصميم: وفاء عليان</div>
-      </div>
-      <div class="nav-label">الصفوف</div>
-      <div id="affNavList"></div>
-      <div class="save-indicator" id="affSaveStatus">—</div>
-    </aside>
-
-    <main class="main" style="padding-bottom:90px;">
-      <div class="main-banner">
-        <img id="affMainLogoImg" alt="شعار المدرسة">
-        <div>
-          <div class="main-banner-title">بطاقات الطالبات — إدراج الصور وطباعتها</div>
-          <div class="main-banner-sub">ثانوية موضي سلطان العيسى بنات — منطقة الأحمدي التعليمية</div>
-        </div>
-      </div>
-      <div class="page-header">
-        <div>
-          <h2 id="affGradeTitle">—</h2>
-          <div class="sub" id="affSummary"></div>
-        </div>
-      </div>
-      <div class="controls">
-        <div class="field"><label>الشعبة</label><select id="affSection"></select></div>
-        <label style="font-size:13px; font-weight:700; color:var(--pink-dark); display:flex; align-items:center; gap:5px;"><input type="checkbox" id="affOnlyPhoto"> طباعة من لديهن صور فقط</label>
-      </div>
-      <div class="table-wrap">
-        <table style="min-width:520px;">
-          <thead><tr><th style="width:36px;">م</th><th style="min-width:200px;">اسم الطالبة</th><th style="width:80px;">الصورة</th><th style="width:170px;">إجراء</th></tr></thead>
-          <tbody id="affairsList"></tbody>
-        </table>
-      </div>
-      <div class="app-footer">
-        <span style="color:var(--pink-dark); font-family:'Aref Ruqaa',serif; font-size:15px; font-weight:700;">تصميم وإعداد: وفاء عليان - قسم الحاسوب</span>
-      </div>
-    </main>
-  </div>
-  <div class="bottom-bar">
-    <div class="bottom-bar-inner">
-      <button class="btn btn-primary" onclick="printAllCards(document.getElementById('affOnlyPhoto').checked)">🖨️ طباعة بطاقات الشعبة</button>
-    </div>
-  </div>
-</div>
-
 <div id="authScreen">
   <div class="auth-card">
     <div class="auth-header-grid">
@@ -672,7 +622,6 @@ function applyLoginLogos(){
   if(b) b.src = getMinistryLogo();
   const c = document.getElementById('publicLogoImg');
   if(c) c.src = getSchoolLogo();
-  ['affLogoImg','affMainLogoImg'].forEach(id => { const e = document.getElementById(id); if(e) e.src = getSchoolLogo(); });
   ['sidebarLogoImg','mainLogoImg'].forEach(id => { const e = document.getElementById(id); if(e) e.src = getSchoolLogo(); });
 }
 
@@ -795,7 +744,6 @@ function setSaveStatus(kind){
   };
   const [txt, col] = map[kind] || map.saved;
   el.textContent = txt; el.style.color = col;
-  const aff = document.getElementById('affSaveStatus'); if(aff){ aff.textContent = txt; aff.style.color = col; }
 }
 
 function flushSection(gId, sec){
@@ -2093,7 +2041,6 @@ function defaultRecord(selectedWeek){
 function boot(){
   applyLoginLogos(); showLastUpdate();
   if(checkPublicPassQuery()) return;
-  if(checkAffairsQuery()) return;
 
   const savedTeacherName = localStorage.getItem('global_teacher_name');
   const savedTeacherDept = localStorage.getItem('global_teacher_dept');
@@ -3796,101 +3743,13 @@ function fillSelect(select, options, currentValue){
   if(currentValue !== undefined) select.value = currentValue;
 }
 
-/* ==================== صفحة شؤون الطلبة: إدراج الصور وطباعة البطاقات ==================== */
-const affLoaded = {};
-function affairsLink(){ return location.origin + location.pathname + '?affairs=1'; }
+/* ==================== رابط صفحة شؤون الطلبة (ملف مستقل) ==================== */
+function affairsLink(){ return location.origin + location.pathname.replace(/[^\/]*$/, '') + 'student-affairs.html'; }
 function copyAffairsLink(){
   const link = affairsLink();
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(link).then(() => alert('تم نسخ الرابط ✓\nأرسليه لشؤون الطلبة.')).catch(() => prompt('انسخي الرابط:', link));
   } else prompt('انسخي الرابط:', link);
-}
-function checkAffairsQuery(){
-  if(!new URLSearchParams(window.location.search).get('affairs')) return false;
-  ['authScreen','appScreen','publicPassScreen'].forEach(id => { const e = document.getElementById(id); if(e) e.style.display = 'none'; });
-  document.getElementById('affairsScreen').style.display = 'block';
-  document.title = 'شؤون الطلبة — إدراج الصور وطباعة البطاقات';
-  currentUserDisplayName = 'شؤون الطلبة'; currentDepartmentName = 'شؤون الطلبة';
-
-  GRADES.forEach(g => {
-    store[g.id] = { sections: {} };
-    SECTIONS[g.id].forEach(sec => {
-      const secKey = `section_${g.id}_${sec}`;
-      const saved = getLocalData(secKey);
-      store[g.id].sections[sec] = saved ? normalizeSection(saved) : { students: defaultStudents(), records: {}, photos: {}, hiddenCards: [] };
-      lastSent[secKey] = cloneJSON(store[g.id].sections[sec]);
-      if(saved) affLoaded[secKey] = true;
-      syncCloudData(secKey, cloudData => {
-        if(!cloudData) return;
-        const changed = mergeCloudSection(g.id, sec, cloudData);
-        affLoaded[secKey] = true;
-        if(g.id === currentGradeId && sec === currentSection && changed) renderAffairs();
-      });
-      db.ref(DB_PREFIX + secKey).once('value').then(() => { affLoaded[secKey] = true; if(g.id === currentGradeId && sec === currentSection) renderAffairs(); }).catch(() => {});
-    });
-  });
-  setTimeout(flushAllPending, 2500);
-
-  const sSel = document.getElementById('affSection');
-  currentGradeId = GRADES[0].id; currentSection = SECTIONS[currentGradeId][0];
-  const fillSections = () => { sSel.innerHTML = SECTIONS[currentGradeId].map(x => `<option value="${x}">${x}</option>`).join(''); sSel.value = currentSection; };
-  window.renderAffNav = () => {
-    const nav = document.getElementById('affNavList'); nav.innerHTML = '';
-    GRADES.forEach(g => {
-      const btn = document.createElement('button');
-      btn.className = 'nav-item' + (g.id === currentGradeId ? ' active' : '');
-      btn.textContent = g.name;
-      btn.onclick = () => { currentGradeId = g.id; currentSection = SECTIONS[g.id][0]; fillSections(); renderAffNav(); renderAffairs(); };
-      nav.appendChild(btn);
-    });
-  };
-  fillSections(); renderAffNav();
-  sSel.onchange = () => { currentSection = sSel.value; renderAffairs(); };
-  setSaveStatus('saved');
-  renderAffairs();
-  return true;
-}
-function renderAffairs(){
-  const list = document.getElementById('affairsList'), sum = document.getElementById('affSummary');
-  if(!list) return;
-  const grade = GRADES.find(g => g.id === currentGradeId);
-  document.getElementById('affGradeTitle').textContent = grade.name + ' — شعبة ' + currentSection;
-  const secKey = `section_${currentGradeId}_${currentSection}`;
-  if(!affLoaded[secKey]){ list.innerHTML = '<tr><td colspan="4" style="padding:18px; color:#777;">⏳ جارٍ تحميل أسماء الطالبات من السحابة... تأكدي من الاتصال بالإنترنت.</td></tr>'; sum.textContent = ''; return; }
-  const sd = getSectionData();
-  if(!sd.photos) sd.photos = {};
-  const hidden = sd.hiddenCards || [];
-  let n = 0, withPhoto = 0, html = '';
-  sd.students.forEach((name, idx) => {
-    if(hidden.includes(name)) return;
-    n++;
-    const ph = sd.photos[idx]; if(ph) withPhoto++;
-    html += `<tr>
-      <td>${n}</td>
-      <td class="name-cell" style="font-size:14px; font-weight:700;">${escHtml(name)}</td>
-      <td>${ph ? `<img class="aff-thumb" src="${ph}" alt="">` : '<div class="aff-thumb empty" style="margin:0 auto;">بلا صورة</div>'}</td>
-      <td>
-        <input type="file" accept="image/*" id="affFile_${idx}" style="display:none;" onchange="affUploadPhoto(event, ${idx})">
-        <button class="btn btn-outline" onclick="document.getElementById('affFile_${idx}').click()">${ph ? '🔄 تغيير' : '📁 رفع صورة'}</button>
-        ${ph ? `<button class="btn btn-outline" style="color:var(--red); border-color:var(--red);" onclick="affRemovePhoto(${idx})">🗑️</button>` : ''}
-      </td></tr>`;
-  });
-  list.innerHTML = html || '<tr><td colspan="4" style="padding:18px; color:#777;">لا توجد طالبات في هذه الشعبة.</td></tr>';
-  sum.textContent = `عدد الطالبات: ${n} — لديهن صور: ${withPhoto} — بلا صور: ${n - withPhoto}`;
-}
-function affUploadPhoto(e, idx){
-  const file = e.target.files[0]; if(!file) return;
-  compressImageFile(file, dataUrl => {
-    const sd = getSectionData(); if(!sd.photos) sd.photos = {};
-    sd.photos[idx] = dataUrl;
-    scheduleSave(true); renderAffairs();
-  });
-}
-function affRemovePhoto(idx){
-  const sd = getSectionData();
-  if(!confirm(`حذف صورة «${sd.students[idx]}»؟`)) return;
-  delete sd.photos[idx];
-  scheduleSave(true); renderAffairs();
 }
 
 boot();
