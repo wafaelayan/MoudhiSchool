@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>صور الطالبات وبطاقاتهن - شؤون الطلبة</title>
+<link rel="manifest" href="/manifest-photos.json">
+<meta name="theme-color" content="#8A1C30">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="صور الطالبات">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&family=Reem+Kufi:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<style>
+:root{--pd:#8A1C30;--pk:#E85A71;--line:#E5C7D0;--cream:#FAF3F0}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Tajawal',sans-serif;background:var(--cream);color:#2C2C2C;padding:14px}
+.wrap{max-width:900px;margin:0 auto}
+h1{color:var(--pd);font-size:20px;margin:0 0 4px}
+.sub{color:#666;font-size:13px;margin-bottom:12px}
+.bar{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px}
+.f{display:flex;flex-direction:column;gap:3px;flex:1 1 140px}
+.f label{font-size:12px;font-weight:700;color:var(--pd)}
+select,input[type=text]{font-family:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:8px;width:100%}
+.btn{font-family:inherit;font-size:14px;font-weight:700;border:none;border-radius:8px;padding:10px 14px;cursor:pointer;background:var(--pk);color:#fff}
+.btn.o{background:#fff;color:var(--pd);border:1px solid var(--pd)}
+.stat{font-weight:800;color:var(--pd);margin:8px 2px;font-size:14px}
+.row{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.row img,.row .ph{width:54px;height:72px;border-radius:6px;object-fit:cover;flex:none;background:#f3e6e9;border:1px dashed var(--pk);font-size:10px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--pd)}
+.row .nm{flex:1;font-weight:700;font-size:15px}
+.row .ok{color:#1E7A46;font-size:12px;font-weight:800}
+#msg{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;display:none;z-index:9}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📸 صور الطالبات وطباعة البطاقات</h1>
+  <div class="sub">ثانوية موضي سلطان العيسى بنات — خاص بموظفات شؤون الطلبة. الصور تُحفظ في السحابة وتظهر تلقائياً في دفتر المتابعة.</div>
+  <div class="bar">
+    <div class="f"><label>الصف</label><select id="g"></select></div>
+    <div class="f"><label>الشعبة</label><select id="s"></select></div>
+    <button class="btn o" onclick="document.getElementById('lm').click()">🏛️ شعار الوزارة</button>
+    <button class="btn o" onclick="document.getElementById('ls').click()">🏫 شعار المدرسة</button>
+    <button class="btn" onclick="printCards()">🖨️ طباعة بطاقات الشعبة</button>
+    <input type="file" id="lm" accept="image/*" hidden onchange="logo('ministry',event)">
+    <input type="file" id="ls" accept="image/*" hidden onchange="logo('school',event)">
+  </div>
+  <div class="f" style="margin-bottom:8px"><input type="text" id="q" placeholder="🔍 ابحثي عن اسم طالبة..." oninput="draw()"></div>
+  <div class="stat" id="stat"></div>
+  <div id="list"></div>
+</div>
+<div id="msg"></div>
+<script>
+firebase.initializeApp({databaseURL:"https://following-students-default-rtdb.firebaseio.com/"});
+const db=firebase.database(), P="moudi_cloud_v3_";
+const GRADES=[["g10","الصف العاشر"],["g11s","الحادي عشر علمي"],["g11l","الحادي عشر أدبي"],["g12s","الثاني عشر علمي"],["g12l","الثاني عشر أدبي"]];
+const SEC={g10:["عاشر 1","عاشر 2","عاشر 3","عاشر 4","عاشر 5","عاشر 6"],g11s:["11 علمي 1","11 علمي 2","11 علمي 3"],g11l:["11 أدبي 1","11 أدبي 2","11 أدبي 3"],g12s:["12 علمي 1","12 علمي 2","12 علمي 3"],g12l:["12 أدبي 1","12 أدبي 2","12 أدبي 3"]};
+const $=id=>document.getElementById(id);
+const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toArr=v=>Array.isArray(v)?v:(v&&typeof v==='object'?Object.keys(v).sort((a,b)=>a-b).map(k=>v[k]):[]);
+let students=[],photos={},hidden=[],ref=null;
+function toast(t){const m=$('msg');m.textContent=t;m.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>m.style.display='none',2500)}
+$('g').innerHTML=GRADES.map(g=>`<option value="${g[0]}">${g[1]}</option>`).join('');
+$('g').onchange=()=>{fillSec();bind()};$('s').onchange=bind;
+function fillSec(){$('s').innerHTML=SEC[$('g').value].map(s=>`<option>${s}</option>`).join('')}
+function bind(){
+  if(ref)ref.off();
+  ref=db.ref(P+`section_${$('g').value}_${$('s').value}`);
+  $('list').innerHTML='<p>جارٍ التحميل...</p>';
+  ref.on('value',sn=>{const v=sn.val()||{};students=toArr(v.students);photos=v.photos||{};hidden=toArr(v.hiddenCards);draw()},()=>{$('list').innerHTML='<p style="color:#B8001F">تعذّر الاتصال بالسحابة.</p>'});
+}
+function draw(){
+  const q=$('q').value.trim(),done=students.filter((_,i)=>photos[i]).length;
+  $('stat').textContent=students.length?`تم رفع ${done} صورة من أصل ${students.length} طالبة`:'';
+  if(!students.length){$('list').innerHTML='<p>لم تُسجَّل أسماء لهذه الشعبة بعد. اطلبي من معلمة الحاسوب إضافة الأسماء في دفتر المتابعة.</p>';return}
+  $('list').innerHTML=students.map((n,i)=>(q&&!n.includes(q))?'':`<div class="row">
+    ${photos[i]?`<img src="${photos[i]}">`:'<div class="ph">بدون صورة</div>'}
+    <div class="nm">${i+1}. ${esc(n)} ${photos[i]?'<div class="ok">✓ تم الرفع</div>':''}</div>
+    <input type="file" accept="image/*" id="f${i}" hidden onchange="up(${i},event)">
+    <button class="btn ${photos[i]?'o':''}" onclick="document.getElementById('f${i}').click()">${photos[i]?'🔄 تغيير':'📷 رفع صورة'}</button></div>`).join('');
+}
+function up(i,e){
+  const f=e.target.files[0];if(!f)return;
+  const img=new Image(),r=new FileReader();
+  r.onload=ev=>{img.onload=()=>{
+    const W=300,H=400,c=document.createElement('canvas');c.width=W;c.height=H;
+    const k=Math.max(W/img.width,H/img.height),w=img.width*k,h=img.height*k;
+    c.getContext('2d').drawImage(img,(W-w)/2,(H-h)/2,w,h);
+    const d=c.toDataURL('image/jpeg',.8);
+    ref.child('photos/'+i).set(d).then(()=>toast('تم حفظ الصورة ✓')).catch(()=>toast('تعذّر الحفظ، تأكدي من الإنترنت'));
+  };img.src=ev.target.result};
+  r.readAsDataURL(f);
+}
+function logo(t,e){
+  const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=ev=>{localStorage.setItem('custom_'+t+'_logo_v2',ev.target.result);toast('تم حفظ الشعار على هذا الجهاز ✓')};r.readAsDataURL(f);
+}
+function printCards(){
+  const sec=$('s').value,g12=$('g').value.startsWith('g12');
+  const sch=localStorage.getItem('custom_school_logo_v2'),min=localStorage.getItem('custom_ministry_logo_v2');
+  const li=s=>s?`<img src="${s}" style="width:14mm;height:14mm;object-fit:contain">`:'<div style="width:14mm"></div>';
+  const three=n=>{const p=n.trim().split(/\s+/);return p.length>3?`${p[0]} ${p[1]} ${p[p.length-1]}`:p.join(' ')};
+  const cards=students.map((n,i)=>{
+    if(hidden.includes(n))return '';
+    const ph=photos[i],sn=esc(three(n));
+    const pic=ph?`<img src="${ph}" style="width:22.5mm;height:30mm;border-radius:2mm;object-fit:cover">`:`<div style="width:22.5mm;height:30mm;border:1.5px dashed #0D2C54;border-radius:2mm;font-size:8pt;display:flex;align-items:center;justify-content:center;text-align:center;color:#0D2C54">الصورة<br>الشخصية</div>`;
+    const bg=g12?'background:linear-gradient(135deg,#0A1826,#1E3A52);color:#fff;border:2.5px solid #E85A71':'background:#fff;border:2px solid #0D2C54';
+    const tc=g12?'#FF8DA1':'#0D2C54',vc=g12?'#fff':'#111';
+    return `<div style="width:90mm;height:60mm;${bg};border-radius:4mm;padding:3mm;display:flex;flex-direction:column;justify-content:space-between;page-break-inside:avoid;box-sizing:border-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${tc};padding-bottom:2px">${li(sch)}<div style="text-align:center"><h4 style="margin:0;font-family:'Reem Kufi',sans-serif;font-size:15pt;color:${tc}">بطاقة طالبة</h4><p style="margin:2px 0 0;font-size:8.5pt;font-weight:800;color:${g12?'#E0E0E0':'#000'}">ثانوية موضي سلطان العيسى - بنات</p></div>${li(min)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex:1"><div style="text-align:right"><p style="margin:0;font-size:11pt;font-weight:800;color:${tc}">الاسم: <span style="color:${vc}">${sn}</span></p><p style="margin:4px 0 0;font-size:11pt;font-weight:800;color:${tc}">الصف: <span style="color:${vc}">${esc(sec)}</span></p></div>${pic}</div>
+      <div style="text-align:center;border-top:1px dashed ${tc};padding-top:2px;font-size:9pt;color:${tc};font-weight:800">${g12?'🌸 🎓 خريجة 2026-2027 🎓 🌸':'العام الدراسي 2026/2027'}</div></div>`;
+  }).join('');
+  if(!cards){toast('لا توجد بطاقات للطباعة');return}
+  const w=window.open('','_blank');if(!w){toast('اسمحي بالنوافذ المنبثقة');return}
+  w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>بطاقات ${esc(sec)}</title><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;800&family=Reem+Kufi:wght@700&display=swap" rel="stylesheet"><style>@page{size:A4 portrait;margin:5mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:'Tajawal',sans-serif}.g{display:grid;grid-template-columns:90mm 90mm;gap:6mm;justify-content:center}</style></head><body><div class="g">${cards}</div><script>window.onload=function(){setTimeout(function(){window.print()},500)}<\/script></body></html>`);
+  w.document.close();
+}
+fillSec();bind();
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw-photos.js').catch(()=>{})}
+</script>
+</body>
+</html>
