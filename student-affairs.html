@@ -275,11 +275,14 @@
       </div>
       <div class="controls">
         <div class="field"><label>الشعبة</label><select id="affSection"></select></div>
-        <label style="font-size:13px; font-weight:700; color:var(--pink-dark); display:flex; align-items:center; gap:5px;"><input type="checkbox" id="affOnlyPhoto"> طباعة من لديهن صور فقط</label>
+        <button class="btn btn-outline" onclick="affSelectWithPhotos()">📷 تحديد من لديهن صور</button>
+        
+        <button class="btn btn-outline" style="border-color:#B8001F; color:#B8001F;" onclick="affUndoAll(false)">↩️ تراجع عن آخر تعديل للشعبة</button>
+        <button class="btn btn-outline" style="border-color:#B8001F; color:#B8001F;" onclick="affUndoAll(true)">⏪ استرجاع الصور الأصلية</button>
       </div>
       <div class="table-wrap">
         <table style="min-width:520px;">
-          <thead><tr><th style="width:36px;">م</th><th style="min-width:200px;">اسم الطالبة</th><th style="width:80px;">الصورة</th><th style="width:170px;">إجراء</th></tr></thead>
+          <thead><tr><th style="width:44px;"><input type="checkbox" id="affSelAll" onchange="affToggleAll(this.checked)" title="تحديد الكل" style="width:18px; height:18px;"></th><th style="width:36px;">م</th><th style="min-width:200px;">اسم الطالبة</th><th style="width:80px;">الصورة</th><th style="width:260px;">إجراء</th></tr></thead>
           <tbody id="affairsList"></tbody>
         </table>
       </div>
@@ -290,7 +293,7 @@
   </div>
   <div class="bottom-bar">
     <div class="bottom-bar-inner">
-      <button class="btn btn-primary" onclick="printAllCards(document.getElementById('affOnlyPhoto').checked)">🖨️ طباعة بطاقات الشعبة</button>
+      <button class="btn btn-primary" onclick="affPrintSelected()">🖨️ طباعة بطاقات المحددات (<span id="affPrintCount">0</span>)</button>
     </div>
   </div>
 </div>
@@ -335,16 +338,105 @@ function formatThreePartName(fullName){
 }
 
 
+/* ===== ضبط صورة الطالبة: قص الحواف البيضاء تلقائياً ثم تحريك/تكبير داخل إطار البطاقة (نسبة 24:31) ===== */
+function autoTrimRect(src){
+  const sc = Math.min(1, 320 / Math.max(src.width, src.height));
+  const w = Math.max(1, Math.round(src.width * sc)), h = Math.max(1, Math.round(src.height * sc));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'); x.drawImage(src, 0, 0, w, h);
+  const d = x.getImageData(0, 0, w, h).data;
+  const lum = (px, py) => { const i = (py * w + px) * 4; return 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]; };
+  // سطر/عمود يُعدّ «حداً» إن كان متجانساً (أبيض أو رمادي الماسحة أو خط ظل)، ويُعدّ صورة إن تنوّعت ألوانه
+  const lineIsContent = (get, len) => {
+    let sum = 0; for(let i = 0; i < len; i++) sum += get(i);
+    const mean = sum / len; let n = 0;
+    for(let i = 0; i < len; i++) if(Math.abs(get(i) - mean) > 22) n++;
+    return n / len > 0.08;
+  };
+  const rowC = y => lineIsContent(i => lum(i, y), w);
+  const colC = i => lineIsContent(y => lum(i, y), h);
+  let top = 0; while(top < h - 1 && !rowC(top)) top++;
+  let bottom = h - 1; while(bottom > top && !rowC(bottom)) bottom--;
+  let left = 0; while(left < w - 1 && !colC(left)) left++;
+  let right = w - 1; while(right > left && !colC(right)) right--;
+  let rw = right - left + 1, rh = bottom - top + 1;
+  if(rw < w * 0.2 || rh < h * 0.2) return { x: 0, y: 0, w: src.width, h: src.height };     // فشل الكشف: الصورة كاملة
+  const ix = rw * 0.015, iy = rh * 0.01;                                                      // قص إضافي صغير للداخل لإزالة بقايا الحافة
+  left += ix; top += iy; rw -= 2 * ix; rh -= 2 * iy;
+  return { x: left / sc, y: top / sc, w: rw / sc, h: rh / sc };
+}
+function openPhotoCropper(src, rect, cb, onReplace){
+  const FW = 240, FH = 310;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; padding:12px; direction:rtl; font-family:inherit;';
+  ov.innerHTML = `<div style="background:#fff; border-radius:16px; padding:16px; max-width:340px; width:100%; text-align:center; max-height:96vh; overflow:auto;">
+    <div style="font-weight:800; color:#8A1C30; font-size:17px;">✂️ ضبط الصورة داخل إطار البطاقة</div>
+    <div style="font-size:12px; color:#666; margin:4px 0 8px; line-height:1.7;">اسحبي الصورة لتحريكها، وكبّري بالمنزلق حتى لا يظهر أي حد أبيض حول الصورة.</div>
+    <canvas id="pcCanvas" width="${FW}" height="${FH}" style="width:${FW}px; height:${FH}px; border:2px solid #E85A71; border-radius:6px; touch-action:none; cursor:grab; background:#fff;"></canvas>
+    <div style="margin:8px 0;"><input type="range" id="pcZoom" min="0" max="100" value="0" style="width:90%;"></div>
+    <div style="display:flex; gap:8px; justify-content:center;"><button class="btn btn-primary" id="pcOk">✔ اعتماد الصورة</button>${onReplace ? '<button class="btn btn-outline" id="pcReplace">🔄 صورة أخرى</button>' : ''}<button class="btn btn-outline" id="pcCancel">إلغاء</button></div></div>`;
+  document.body.appendChild(ov);
+  const cv = ov.querySelector('#pcCanvas'), ctx = cv.getContext('2d'), zoom = ov.querySelector('#pcZoom');
+  const sMin = Math.max(FW / src.width, FH / src.height);
+  let s0 = Math.max(FW / rect.w, FH / rect.h, sMin);
+  const sMax = Math.max(s0 * 4, sMin * 6);
+  let s = s0, ox = FW / 2 - (rect.x + rect.w / 2) * s, oy = FH / 2 - (rect.y + rect.h / 2) * s;
+  const clamp = () => { ox = Math.min(0, Math.max(FW - src.width * s, ox)); oy = Math.min(0, Math.max(FH - src.height * s, oy)); };
+  const draw = () => { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, FW, FH); ctx.drawImage(src, ox, oy, src.width * s, src.height * s); };
+  zoom.value = Math.round(100 * Math.log(s / sMin) / Math.log(sMax / sMin));
+  clamp(); draw();
+  zoom.oninput = () => {
+    const cx = (FW / 2 - ox) / s, cy = (FH / 2 - oy) / s;
+    s = sMin * Math.pow(sMax / sMin, zoom.value / 100);
+    ox = FW / 2 - cx * s; oy = FH / 2 - cy * s; clamp(); draw();
+  };
+  let drag = null;
+  cv.onpointerdown = e => { drag = { x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing'; };
+  cv.onpointermove = e => { if(!drag) return; ox += e.clientX - drag.x; oy += e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY }; clamp(); draw(); };
+  cv.onpointerup = cv.onpointercancel = () => { drag = null; cv.style.cursor = 'grab'; };
+  ov.querySelector('#pcCancel').onclick = () => ov.remove();
+  const rb = ov.querySelector('#pcReplace'); if(rb) rb.onclick = () => { ov.remove(); onReplace(); };
+  ov.querySelector('#pcOk').onclick = () => {
+    const k = 480 / FW, out = document.createElement('canvas'); out.width = 480; out.height = Math.round(FH * k);
+    const o = out.getContext('2d'); o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height);
+    o.drawImage(src, ox * k, oy * k, src.width * s * k, src.height * s * k);
+    const url = out.toDataURL('image/jpeg', 0.92);
+    ov.remove(); cb(url, src);
+  };
+}
+function loadSrcCanvas(dataUrl){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const sc = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c);
+    };
+    img.onerror = rej; img.src = dataUrl;
+  });
+}
+// قص تلقائي مباشر (بلا نافذة): يملأ إطار 24×31 بعد إزالة الحواف، مع قص إضافي بنسبة extra من كل جانب
+function coverCropToFrame(src, rect, extra){
+  const FW = 240, FH = 310, e = extra || 0;
+  const r = { x: rect.x + rect.w * e, y: rect.y + rect.h * e, w: rect.w * (1 - 2 * e), h: rect.h * (1 - 2 * e) };
+  const sMin = Math.max(FW / src.width, FH / src.height);
+  const s = Math.max(FW / r.w, FH / r.h, sMin);
+  let ox = FW / 2 - (r.x + r.w / 2) * s, oy = FH / 2 - (r.y + r.h / 2) * s;
+  ox = Math.min(0, Math.max(FW - src.width * s, ox)); oy = Math.min(0, Math.max(FH - src.height * s, oy));
+  const k = 480 / FW, out = document.createElement('canvas'); out.width = 480; out.height = Math.round(FH * k);
+  const o = out.getContext('2d'); o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height);
+  o.drawImage(src, ox * k, oy * k, src.width * s * k, src.height * s * k);
+  return out.toDataURL('image/jpeg', 0.92);
+}
 function compressImageFile(file, cb){
   const reader = new FileReader();
   reader.onload = ev => {
     const img = new Image();
     img.onload = () => {
-      const max = 520, sc = Math.min(1, max / Math.max(img.width, img.height));
-      const w = Math.round(img.width * sc), h = Math.round(img.height * sc);
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      cb(c.toDataURL('image/jpeg', 0.85));
+      const sc = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const src = document.createElement('canvas'); src.width = Math.round(img.width * sc); src.height = Math.round(img.height * sc);
+      src.getContext('2d').drawImage(img, 0, 0, src.width, src.height);
+      openPhotoCropper(src, autoTrimRect(src), cb);
     };
     img.onerror = () => alert('تعذّر قراءة الصورة، جرّبي صورة أخرى.');
     img.src = ev.target.result;
@@ -352,12 +444,12 @@ function compressImageFile(file, cb){
   reader.readAsDataURL(file);
 }
 
-function printAllCards(onlyPhoto){
+function printAllCards(onlyPhoto, selected){
   const secData = getSectionData();
   const minLogoData = localStorage.getItem('custom_ministry_logo_v2');
   const schLogoData = localStorage.getItem('custom_school_logo_v2');
 
-  const minLogoHTML = `<img src="${minLogoData || getMinistryLogo()}" style="width:14mm; height:14mm; object-fit:contain;">`;
+  const minLogoHTML = `<img src="${minLogoData || getMinistryLogo()}" style="width:16.5mm; height:16.5mm; margin:-2mm 0 -0.5mm; object-fit:contain;">`;
   const schLogoHTML = schLogoData ? `<img src="${schLogoData}" style="width:14mm; height:14mm; object-fit:contain;">` : `<img src="${getSchoolLogo()}" style="width:14mm; height:14mm; object-fit:contain;">`;
 
   const isGrade12 = currentGradeId === 'g12s' || currentGradeId === 'g12l';
@@ -367,6 +459,7 @@ function printAllCards(onlyPhoto){
     if(secData.hiddenCards && secData.hiddenCards.includes(name)) return;
     const photo = secData.photos[idx];
     if(onlyPhoto === true && !photo) return;
+    if(Array.isArray(selected) && !selected.includes(idx)) return;
     const shortName = formatThreePartName(name);
 
     const nameParts = name.trim().split(/\s+/);
@@ -382,8 +475,8 @@ function printAllCards(onlyPhoto){
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid ${T.line}; padding-bottom:2px; z-index:1;">
           ${minLogoHTML}
           <div style="text-align:center;">
-            <h4 style="margin:0; font-family:'Reem Kufi', sans-serif; font-size:15pt; color:${T.title}; font-weight:800;">بطاقة طالبة</h4>
-            <p style="margin:2px 0 0; font-size:8.5pt; font-weight:800; color:${T.sub};"><span style="${T.subBox}">ثانوية موضي سلطان العيسى - بنات</span></p>
+            <h4 style="margin:0; line-height:1.1; font-family:'Reem Kufi', sans-serif; font-size:15pt; color:${T.title}; font-weight:800;">بطاقة طالبة</h4>
+            <div style="margin:1.5px 0 0; display:inline-block; line-height:1.2; font-size:8pt; font-weight:800; color:${T.sub}; ${T.subBox}"><div>منطقة الأحمدي التعليمية</div><div>ثانوية موضي سلطان العيسى - بنات</div></div>
           </div>
           ${schLogoHTML}
         </div>
@@ -431,21 +524,38 @@ function printAllCards(onlyPhoto){
 /* ================= صفحة شؤون الطلبة المستقلة (بلا تسجيل دخول) ================= */
 let currentGradeId = GRADES[0].id, currentSection = SECTIONS[GRADES[0].id][0];
 let currentUserDisplayName = 'شؤون الطلبة', currentDepartmentName = 'شؤون الطلبة';
-let live = { refs: [], students: null, photos: null, hidden: [] };
+let live = { refs: [], students: null, photos: null, hidden: [], sel: null, bk: {} };
 let pending = 0;
 
+function secName(){ return `section_${currentGradeId}_${currentSection}`; }
+function bkRef(name, idx){ return db.ref(DB_PREFIX + 'photo_backup/' + name + '/' + idx); }
+// كل تعديل على صورة يحفظ نسخة سابقة (prev) والأصلية (orig) في فرع منفصل لا تحمّله صفحات المعلمات
+async function backedUpSet(name, idx, curVal, newVal, isNewUpload){
+  if(curVal){
+    const bk = bkRef(name, idx), b = (await bk.once('value')).val() || {};
+    const upd = { prev: curVal };
+    if(!b.orig || isNewUpload) upd.orig = isNewUpload ? newVal : curVal;
+    await bk.update(upd);
+    await db.ref(DB_PREFIX + 'photo_backup_flag/' + name + '/' + idx).set(true);
+  }
+  const pr = db.ref(DB_PREFIX + name + '/photos/' + idx);
+  if(newVal === null) await pr.remove(); else await pr.set(newVal);
+}
 function secPath(){ return DB_PREFIX + `section_${currentGradeId}_${currentSection}`; }
 function getSectionData(){ return { students: live.students || [], photos: live.photos || {}, hiddenCards: live.hidden || [] }; }
 function setStatus(txt, col){ const e = document.getElementById('affSaveStatus'); e.textContent = txt; e.style.color = col || '#FFD37A'; }
 
 function watchSection(){
   live.refs.forEach(r => r.off());
-  live = { refs: [], students: null, photos: null, hidden: [] };
+  live = { refs: [], students: null, photos: null, hidden: [], sel: null, bk: {} };
   const base = db.ref(secPath());
   const sub = (name, fn) => { const r = base.child(name); r.on('value', snap => { fn(snap.val()); renderAffairs(); }, () => setStatus('⚠️ تعذّر الاتصال بالسحابة', '#FFB3B3')); live.refs.push(r); };
   sub('students', v => { live.students = toArr(v); live.studentsLoaded = true; });
   sub('photos', v => { live.photos = (v && typeof v === 'object') ? v : {}; live.photosLoaded = true; });
   sub('hiddenCards', v => { live.hidden = toArr(v); });
+  const fr = db.ref(DB_PREFIX + 'photo_backup_flag/' + secName());
+  fr.on('value', snap => { live.bk = snap.val() || {}; renderAffairs(); });
+  live.refs.push(fr);
   renderAffairs();
 }
 
@@ -470,28 +580,90 @@ function renderAffairs(){
   const grade = GRADES.find(g => g.id === currentGradeId);
   document.getElementById('affGradeTitle').textContent = grade.name + ' — شعبة ' + currentSection;
   if(live.students === null || live.photos === null){
-    list.innerHTML = '<tr><td colspan="4" style="padding:18px; color:#777;">⏳ جارٍ تحميل أسماء الطالبات من السحابة... تأكدي من الاتصال بالإنترنت.</td></tr>'; sum.textContent = ''; return;
+    list.innerHTML = '<tr><td colspan="5" style="padding:18px; color:#777;">⏳ جارٍ تحميل أسماء الطالبات من السحابة... تأكدي من الاتصال بالإنترنت.</td></tr>'; sum.textContent = ''; return;
   }
   if(live.students.length === 0){
-    list.innerHTML = '<tr><td colspan="4" style="padding:18px; color:#777;">لم تُسجَّل أسماء طالبات هذه الشعبة بعد. تُدخلها المعلمة من «إدارة أسماء الطالبات».</td></tr>'; sum.textContent = ''; return;
+    list.innerHTML = '<tr><td colspan="5" style="padding:18px; color:#777;">لم تُسجَّل أسماء طالبات هذه الشعبة بعد. تُدخلها المعلمة من «إدارة أسماء الطالبات».</td></tr>'; sum.textContent = ''; return;
   }
+  if(!live.sel) live.sel = new Set(visibleIdxs());
   let n = 0, withPhoto = 0, html = '';
   live.students.forEach((name, idx) => {
     if(live.hidden.includes(name)) return;
     n++;
     const ph = live.photos[idx]; if(ph) withPhoto++;
     html += `<tr>
+      <td><input type="checkbox" style="width:18px; height:18px;" ${live.sel.has(idx) ? 'checked' : ''} onchange="affToggle(${idx}, this.checked)"></td>
       <td>${n}</td>
       <td class="name-cell" style="font-size:14px; font-weight:700;">${escHtml(name)}</td>
       <td>${ph ? `<img class="aff-thumb" src="${ph}" alt="" style="margin:0 auto; display:block;">` : '<div class="aff-thumb empty" style="margin:0 auto;">بلا صورة</div>'}</td>
       <td>
         <input type="file" accept="image/*" id="affFile_${idx}" style="display:none;" onchange="affUploadPhoto(event, ${idx})">
-        <button class="btn btn-outline" onclick="document.getElementById('affFile_${idx}').click()">${ph ? '🔄 تغيير' : '📁 رفع صورة'}</button>
+        ${ph ? '' : `<button class="btn btn-outline" onclick="document.getElementById('affFile_${idx}').click()">📁 رفع صورة</button>`}
+        ${ph ? `<button class="btn btn-outline" onclick="affRecrop(${idx})">✂️ تعديل</button>` : ''}
+        ${live.bk && live.bk[idx] ? `<button class="btn btn-outline" style="color:#0D2C54; border-color:#0D2C54;" onclick="affUndo(${idx})">${ph ? '↩️ تراجع' : '↩️ استرجاع'}</button>` : ''}
         ${ph ? `<button class="btn btn-outline" style="color:var(--red); border-color:var(--red);" onclick="affRemovePhoto(${idx})">🗑️</button>` : ''}
       </td></tr>`;
   });
   list.innerHTML = html;
+  updateSelUI();
   sum.textContent = `عدد الطالبات: ${n} — لديهن صور: ${withPhoto} — بلا صور: ${n - withPhoto}`;
+}
+
+
+/* ===== اختيار الطالبات اللواتي تُطبع بطاقاتهن ===== */
+function visibleIdxs(){ const st = live.students || []; return st.map((n, i) => i).filter(i => !live.hidden.includes(st[i])); }
+function updateSelUI(){
+  const v = visibleIdxs(), n = v.filter(i => live.sel && live.sel.has(i)).length;
+  const c = document.getElementById('affPrintCount'); if(c) c.textContent = n;
+  const m = document.getElementById('affSelAll'); if(m) m.checked = v.length > 0 && n === v.length;
+}
+function affToggle(i, on){ if(on) live.sel.add(i); else live.sel.delete(i); updateSelUI(); }
+function affToggleAll(on){ live.sel = new Set(on ? visibleIdxs() : []); renderAffairs(); }
+function affSelectWithPhotos(){ live.sel = new Set(visibleIdxs().filter(i => live.photos && live.photos[i])); renderAffairs(); }
+function affPrintSelected(){
+  const idxs = visibleIdxs().filter(i => live.sel && live.sel.has(i));
+  if(!idxs.length){ alert('حددي طالبة واحدة على الأقل لطباعة بطاقتها.'); return; }
+  printAllCards(false, idxs);
+}
+
+
+/* ===== إصلاح صور موجودة سابقاً ===== */
+async function affRecrop(idx){
+  const url = live.photos && live.photos[idx]; if(!url) return;
+  const name = secName();
+  let srcUrl = url;
+  try{ const v = (await db.ref(DB_PREFIX + 'photo_src/' + name + '/' + idx).once('value')).val(); if(v) srcUrl = v; }catch(e){}
+  loadSrcCanvas(srcUrl).then(src => openPhotoCropper(src, shrinkRect(autoTrimRect(src), srcUrl === url ? 0.04 : 0.02),
+      out => trackWrite(backedUpSet(name, idx, url, out)),
+      () => { const fi = document.getElementById('affFile_' + idx); if(fi) fi.click(); }))
+    .catch(() => alert('تعذّر فتح الصورة.'));
+}
+function shrinkRect(r, e){ return { x: r.x + r.w * e, y: r.y + r.h * e, w: r.w * (1 - 2 * e), h: r.h * (1 - 2 * e) }; }
+/* ===== التراجع ===== */
+async function swapBackup(name, idx, key){
+  const bk = bkRef(name, idx), b = (await bk.once('value')).val() || {};
+  const target = b[key]; if(!target) return false;
+  const pr = db.ref(DB_PREFIX + name + '/photos/' + idx);
+  const cur = (await pr.once('value')).val();
+  await pr.set(target);
+  await bk.update({ prev: cur || null });          // يبقى بالإمكان الرجوع للنسخة التي كانت قبل التراجع
+  return true;
+}
+function affUndo(idx){
+  const name = secName();
+  trackWrite(swapBackup(name, idx, 'prev').then(ok => { if(!ok) alert('لا توجد نسخة سابقة لهذه الصورة.'); }));
+}
+async function affUndoAll(toOriginal){
+  const name = secName();
+  const idxs = visibleIdxs().filter(i => live.bk && live.bk[i]);
+  if(!idxs.length){ alert('لا توجد تعديلات يمكن التراجع عنها في هذه الشعبة.'); return; }
+  const msg = toOriginal ? `سيتم استرجاع الصور الأصلية (كما رُفعت) لـ ${idxs.length} طالبة في هذه الشعبة.` : `سيتم التراجع عن آخر تعديل (زوم أو قص أو تغيير أو حذف) لـ ${idxs.length} طالبة في هذه الشعبة.`;
+  if(!confirm(msg + '\n\nهل تريدين المتابعة؟')) return;
+  let done = 0;
+  for(const i of idxs){
+    try{ if(await swapBackup(name, i, toOriginal ? 'orig' : 'prev')){ done++; setStatus(`⏳ تم التراجع لـ ${done} من ${idxs.length}...`); } }catch(e){}
+  }
+  setStatus(`✅ تم التراجع لـ ${done} من ${idxs.length} صورة`, '#BFF0CF');
 }
 
 function trackWrite(promise){
@@ -501,12 +673,16 @@ function trackWrite(promise){
 }
 function affUploadPhoto(e, idx){
   const file = e.target.files[0]; if(!file) return;
-  compressImageFile(file, dataUrl => trackWrite(db.ref(secPath() + '/photos/' + idx).set(dataUrl)));
+  e.target.value = ''; compressImageFile(file, (dataUrl, srcCanvas) => {
+    const name = secName(), cur = (live.photos || {})[idx];
+    const srcUrl = srcCanvas.toDataURL('image/jpeg', 0.88);
+    trackWrite(Promise.all([ backedUpSet(name, idx, cur, dataUrl, true), db.ref(DB_PREFIX + 'photo_src/' + name + '/' + idx).set(srcUrl) ]));
+  });
 }
 function affRemovePhoto(idx){
   const name = (live.students || [])[idx];
   if(!confirm(`حذف صورة «${name}»؟`)) return;
-  trackWrite(db.ref(secPath() + '/photos/' + idx).remove());
+  trackWrite(backedUpSet(secName(), idx, (live.photos || {})[idx], null));
 }
 
 window.addEventListener('beforeunload', e => { if(pending > 0){ e.preventDefault(); e.returnValue = ''; } });
