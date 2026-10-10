@@ -3107,26 +3107,116 @@ function openCardsModal(){
 
 function closeCardsModal(){ cardsModal.classList.remove('open'); }
 
+/* ===== ضبط صورة الطالبة: قص الحواف البيضاء تلقائياً ثم تحريك/تكبير داخل إطار البطاقة (نسبة 24:31) ===== */
+function autoTrimRect(src){
+  const sc = Math.min(1, 320 / Math.max(src.width, src.height));
+  const w = Math.max(1, Math.round(src.width * sc)), h = Math.max(1, Math.round(src.height * sc));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'); x.drawImage(src, 0, 0, w, h);
+  const d = x.getImageData(0, 0, w, h).data;
+  const lum = (px, py) => { const i = (py * w + px) * 4; return 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]; };
+  // سطر/عمود يُعدّ «حداً» إن كان متجانساً (أبيض أو رمادي الماسحة أو خط ظل)، ويُعدّ صورة إن تنوّعت ألوانه
+  const lineIsContent = (get, len) => {
+    let sum = 0; for(let i = 0; i < len; i++) sum += get(i);
+    const mean = sum / len; let n = 0;
+    for(let i = 0; i < len; i++) if(Math.abs(get(i) - mean) > 22) n++;
+    return n / len > 0.08;
+  };
+  const rowC = y => lineIsContent(i => lum(i, y), w);
+  const colC = i => lineIsContent(y => lum(i, y), h);
+  let top = 0; while(top < h - 1 && !rowC(top)) top++;
+  let bottom = h - 1; while(bottom > top && !rowC(bottom)) bottom--;
+  let left = 0; while(left < w - 1 && !colC(left)) left++;
+  let right = w - 1; while(right > left && !colC(right)) right--;
+  let rw = right - left + 1, rh = bottom - top + 1;
+  if(rw < w * 0.2 || rh < h * 0.2) return { x: 0, y: 0, w: src.width, h: src.height };     // فشل الكشف: الصورة كاملة
+  const ix = rw * 0.015, iy = rh * 0.01;                                                      // قص إضافي صغير للداخل لإزالة بقايا الحافة
+  left += ix; top += iy; rw -= 2 * ix; rh -= 2 * iy;
+  return { x: left / sc, y: top / sc, w: rw / sc, h: rh / sc };
+}
+function openPhotoCropper(src, rect, cb, onReplace){
+  const FW = 240, FH = 310;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; padding:12px; direction:rtl; font-family:inherit;';
+  ov.innerHTML = `<div style="background:#fff; border-radius:16px; padding:16px; max-width:340px; width:100%; text-align:center; max-height:96vh; overflow:auto;">
+    <div style="font-weight:800; color:#8A1C30; font-size:17px;">✂️ ضبط الصورة داخل إطار البطاقة</div>
+    <div style="font-size:12px; color:#666; margin:4px 0 8px; line-height:1.7;">اسحبي الصورة لتحريكها، وكبّري بالمنزلق حتى لا يظهر أي حد أبيض حول الصورة.</div>
+    <canvas id="pcCanvas" width="${FW}" height="${FH}" style="width:${FW}px; height:${FH}px; border:2px solid #E85A71; border-radius:6px; touch-action:none; cursor:grab; background:#fff;"></canvas>
+    <div style="margin:8px 0;"><input type="range" id="pcZoom" min="0" max="100" value="0" style="width:90%;"></div>
+    <div style="display:flex; gap:8px; justify-content:center;"><button class="btn btn-primary" id="pcOk">✔ اعتماد الصورة</button>${onReplace ? '<button class="btn btn-outline" id="pcReplace">🔄 صورة أخرى</button>' : ''}<button class="btn btn-outline" id="pcCancel">إلغاء</button></div></div>`;
+  document.body.appendChild(ov);
+  const cv = ov.querySelector('#pcCanvas'), ctx = cv.getContext('2d'), zoom = ov.querySelector('#pcZoom');
+  const sMin = Math.max(FW / src.width, FH / src.height);
+  let s0 = Math.max(FW / rect.w, FH / rect.h, sMin);
+  const sMax = Math.max(s0 * 4, sMin * 6);
+  let s = s0, ox = FW / 2 - (rect.x + rect.w / 2) * s, oy = FH / 2 - (rect.y + rect.h / 2) * s;
+  const clamp = () => { ox = Math.min(0, Math.max(FW - src.width * s, ox)); oy = Math.min(0, Math.max(FH - src.height * s, oy)); };
+  const draw = () => { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, FW, FH); ctx.drawImage(src, ox, oy, src.width * s, src.height * s); };
+  zoom.value = Math.round(100 * Math.log(s / sMin) / Math.log(sMax / sMin));
+  clamp(); draw();
+  zoom.oninput = () => {
+    const cx = (FW / 2 - ox) / s, cy = (FH / 2 - oy) / s;
+    s = sMin * Math.pow(sMax / sMin, zoom.value / 100);
+    ox = FW / 2 - cx * s; oy = FH / 2 - cy * s; clamp(); draw();
+  };
+  let drag = null;
+  cv.onpointerdown = e => { drag = { x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing'; };
+  cv.onpointermove = e => { if(!drag) return; ox += e.clientX - drag.x; oy += e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY }; clamp(); draw(); };
+  cv.onpointerup = cv.onpointercancel = () => { drag = null; cv.style.cursor = 'grab'; };
+  ov.querySelector('#pcCancel').onclick = () => ov.remove();
+  const rb = ov.querySelector('#pcReplace'); if(rb) rb.onclick = () => { ov.remove(); onReplace(); };
+  ov.querySelector('#pcOk').onclick = () => {
+    const k = 480 / FW, out = document.createElement('canvas'); out.width = 480; out.height = Math.round(FH * k);
+    const o = out.getContext('2d'); o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height);
+    o.drawImage(src, ox * k, oy * k, src.width * s * k, src.height * s * k);
+    const url = out.toDataURL('image/jpeg', 0.92);
+    ov.remove(); cb(url, src);
+  };
+}
+function loadSrcCanvas(dataUrl){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const sc = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c);
+    };
+    img.onerror = rej; img.src = dataUrl;
+  });
+}
+// قص تلقائي مباشر (بلا نافذة): يملأ إطار 24×31 بعد إزالة الحواف، مع قص إضافي بنسبة extra من كل جانب
+function coverCropToFrame(src, rect, extra){
+  const FW = 240, FH = 310, e = extra || 0;
+  const r = { x: rect.x + rect.w * e, y: rect.y + rect.h * e, w: rect.w * (1 - 2 * e), h: rect.h * (1 - 2 * e) };
+  const sMin = Math.max(FW / src.width, FH / src.height);
+  const s = Math.max(FW / r.w, FH / r.h, sMin);
+  let ox = FW / 2 - (r.x + r.w / 2) * s, oy = FH / 2 - (r.y + r.h / 2) * s;
+  ox = Math.min(0, Math.max(FW - src.width * s, ox)); oy = Math.min(0, Math.max(FH - src.height * s, oy));
+  const k = 480 / FW, out = document.createElement('canvas'); out.width = 480; out.height = Math.round(FH * k);
+  const o = out.getContext('2d'); o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height);
+  o.drawImage(src, ox * k, oy * k, src.width * s * k, src.height * s * k);
+  return out.toDataURL('image/jpeg', 0.92);
+}
 function compressImageFile(file, cb){
   const reader = new FileReader();
   reader.onload = ev => {
     const img = new Image();
     img.onload = () => {
-      const max = 520, sc = Math.min(1, max / Math.max(img.width, img.height));
-      const w = Math.round(img.width * sc), h = Math.round(img.height * sc);
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      cb(c.toDataURL('image/jpeg', 0.85));
+      const sc = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const src = document.createElement('canvas'); src.width = Math.round(img.width * sc); src.height = Math.round(img.height * sc);
+      src.getContext('2d').drawImage(img, 0, 0, src.width, src.height);
+      openPhotoCropper(src, autoTrimRect(src), cb);
     };
     img.onerror = () => alert('تعذّر قراءة الصورة، جرّبي صورة أخرى.');
     img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 }
+
 function uploadStudentPhoto(e, idx){
   const file = e.target.files[0];
   if(!file) return;
-  compressImageFile(file, dataUrl => {
+  e.target.value = ''; compressImageFile(file, dataUrl => {
     const secData = getSectionData();
     secData.photos[idx] = dataUrl;
     scheduleSave(true);
@@ -3151,12 +3241,12 @@ function restoreHiddenCards(){
   alert("تم إعادة إظهار كافة البطاقات المخفية بنجاح ✓");
 }
 
-function printAllCards(onlyPhoto){
+function printAllCards(onlyPhoto, selected){
   const secData = getSectionData();
   const minLogoData = localStorage.getItem('custom_ministry_logo_v2');
   const schLogoData = localStorage.getItem('custom_school_logo_v2');
 
-  const minLogoHTML = `<img src="${minLogoData || getMinistryLogo()}" style="width:14mm; height:14mm; object-fit:contain;">`;
+  const minLogoHTML = `<img src="${minLogoData || getMinistryLogo()}" style="width:16.5mm; height:16.5mm; margin:-2mm 0 -0.5mm; object-fit:contain;">`;
   const schLogoHTML = schLogoData ? `<img src="${schLogoData}" style="width:14mm; height:14mm; object-fit:contain;">` : `<img src="${getSchoolLogo()}" style="width:14mm; height:14mm; object-fit:contain;">`;
 
   const isGrade12 = currentGradeId === 'g12s' || currentGradeId === 'g12l';
@@ -3166,6 +3256,7 @@ function printAllCards(onlyPhoto){
     if(secData.hiddenCards && secData.hiddenCards.includes(name)) return;
     const photo = secData.photos[idx];
     if(onlyPhoto === true && !photo) return;
+    if(Array.isArray(selected) && !selected.includes(idx)) return;
     const shortName = formatThreePartName(name);
 
     const nameParts = name.trim().split(/\s+/);
@@ -3181,8 +3272,8 @@ function printAllCards(onlyPhoto){
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid ${T.line}; padding-bottom:2px; z-index:1;">
           ${minLogoHTML}
           <div style="text-align:center;">
-            <h4 style="margin:0; font-family:'Reem Kufi', sans-serif; font-size:15pt; color:${T.title}; font-weight:800;">بطاقة طالبة</h4>
-            <p style="margin:2px 0 0; font-size:8.5pt; font-weight:800; color:${T.sub};"><span style="${T.subBox}">ثانوية موضي سلطان العيسى - بنات</span></p>
+            <h4 style="margin:0; line-height:1.1; font-family:'Reem Kufi', sans-serif; font-size:15pt; color:${T.title}; font-weight:800;">بطاقة طالبة</h4>
+            <div style="margin:1.5px 0 0; display:inline-block; line-height:1.2; font-size:8pt; font-weight:800; color:${T.sub}; ${T.subBox}"><div>منطقة الأحمدي التعليمية</div><div>ثانوية موضي سلطان العيسى - بنات</div></div>
           </div>
           ${schLogoHTML}
         </div>
