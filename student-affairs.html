@@ -276,10 +276,13 @@
       <div class="controls">
         <div class="field"><label>الشعبة</label><select id="affSection"></select></div>
         <button class="btn btn-outline" onclick="affSelectWithPhotos()">📷 تحديد من لديهن صور</button>
+        <button class="btn btn-primary" style="background:#0D2C54;" onclick="affAddToBasket()">➕ إضافة المحددات إلى طباعة صفوف مختلفة</button>
+        <button class="btn btn-outline" style="border-color:#B8001F; color:#B8001F;" onclick="affCleanup()">🧹 حذف الصور نهائياً</button>
         
         <button class="btn btn-outline" style="border-color:#B8001F; color:#B8001F;" onclick="affUndoAll(false)">↩️ تراجع عن آخر تعديل للشعبة</button>
         <button class="btn btn-outline" style="border-color:#B8001F; color:#B8001F;" onclick="affUndoAll(true)">⏪ استرجاع الصور الأصلية</button>
       </div>
+      <div id="affBasket" class="pledge-banner" style="display:none; background:#EAF2FB; border-color:#9DB9DE; color:#0D2C54;"></div>
       <div class="table-wrap">
         <table style="min-width:520px;">
           <thead><tr><th style="width:44px;"><input type="checkbox" id="affSelAll" onchange="affToggleAll(this.checked)" title="تحديد الكل" style="width:18px; height:18px;"></th><th style="width:36px;">م</th><th style="min-width:200px;">اسم الطالبة</th><th style="width:80px;">الصورة</th><th style="width:260px;">إجراء</th></tr></thead>
@@ -293,6 +296,7 @@
   </div>
   <div class="bottom-bar">
     <div class="bottom-bar-inner">
+      <button class="btn btn-primary" id="affPrintBasketBtn" style="display:none; background:#0D2C54;" onclick="affPrintBasket()">🖨️ طباعة بطاقات من صفوف مختلفة (<span id="affBasketCount">0</span>)</button>
       <button class="btn btn-primary" onclick="affPrintSelected()">🖨️ طباعة بطاقات المحددات (<span id="affPrintCount">0</span>)</button>
     </div>
   </div>
@@ -380,7 +384,8 @@ function openPhotoCropper(src, rect, cb, onReplace){
   const sMin = Math.max(FW / src.width, FH / src.height);
   let s0 = Math.max(FW / rect.w, FH / rect.h, sMin);
   const sMax = Math.max(s0 * 4, sMin * 6);
-  let s = s0, ox = FW / 2 - (rect.x + rect.w / 2) * s, oy = FH / 2 - (rect.y + rect.h / 2) * s;
+  const visH = FH / s0;
+  let s = s0, ox = FW / 2 - (rect.x + rect.w / 2) * s, oy = rect.h > visH ? -(rect.y + (rect.h - visH) * 0.3) * s : FH / 2 - (rect.y + rect.h / 2) * s;
   const clamp = () => { ox = Math.min(0, Math.max(FW - src.width * s, ox)); oy = Math.min(0, Math.max(FH - src.height * s, oy)); };
   const draw = () => { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, FW, FH); ctx.drawImage(src, ox, oy, src.width * s, src.height * s); };
   zoom.value = Math.round(100 * Math.log(s / sMin) / Math.log(sMax / sMin));
@@ -398,10 +403,10 @@ function openPhotoCropper(src, rect, cb, onReplace){
   const rb = ov.querySelector('#pcReplace'); if(rb) rb.onclick = () => { ov.remove(); onReplace(); };
   ov.querySelector('#pcOk').onclick = () => {
     const k = 480 / FW, out = document.createElement('canvas'); out.width = 480; out.height = Math.round(FH * k);
-    const o = out.getContext('2d'); o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height);
+    const o = out.getContext('2d'); o.imageSmoothingQuality = 'high'; o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height);
     o.drawImage(src, ox * k, oy * k, src.width * s * k, src.height * s * k);
     const url = out.toDataURL('image/jpeg', 0.92);
-    ov.remove(); cb(url, src);
+    ov.remove(); cb(url, src, rect);
   };
 }
 function loadSrcCanvas(dataUrl){
@@ -424,19 +429,40 @@ function coverCropToFrame(src, rect, extra){
   let ox = FW / 2 - (r.x + r.w / 2) * s, oy = FH / 2 - (r.y + r.h / 2) * s;
   ox = Math.min(0, Math.max(FW - src.width * s, ox)); oy = Math.min(0, Math.max(FH - src.height * s, oy));
   const k = 480 / FW, out = document.createElement('canvas'); out.width = 480; out.height = Math.round(FH * k);
-  const o = out.getContext('2d'); o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height);
+  const o = out.getContext('2d'); o.imageSmoothingQuality = 'high'; o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height);
   o.drawImage(src, ox * k, oy * k, src.width * s * k, src.height * s * k);
   return out.toDataURL('image/jpeg', 0.92);
+}
+// النسخة المحفوظة للتعديل لاحقاً: منطقة الصورة مع هامش 15%، بدقتها الكاملة (حتى 1200 بكسل) بدل الصفحة الممسوحة كلها
+function makeStoredSource(src, rect){
+  const mx = rect.w * 0.15, my = rect.h * 0.15;
+  const x = Math.max(0, rect.x - mx), y = Math.max(0, rect.y - my);
+  const w = Math.min(src.width - x, rect.w + 2 * mx), h = Math.min(src.height - y, rect.h + 2 * my);
+  const sc = Math.min(1, 1200 / Math.max(w, h));
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * sc)); c.height = Math.max(1, Math.round(h * sc));
+  const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(src, x, y, w, h, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.88);
 }
 function compressImageFile(file, cb){
   const reader = new FileReader();
   reader.onload = ev => {
     const img = new Image();
     img.onload = () => {
-      const sc = Math.min(1, 1600 / Math.max(img.width, img.height));
-      const src = document.createElement('canvas'); src.width = Math.round(img.width * sc); src.height = Math.round(img.height * sc);
-      src.getContext('2d').drawImage(img, 0, 0, src.width, src.height);
-      openPhotoCropper(src, autoTrimRect(src), cb);
+      // 1) تحليل الحواف على نسخة صغيرة (سريع ولا يستهلك ذاكرة حتى مع مسح 600 dpi)
+      const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+      const asc = Math.min(1, 800 / Math.max(W, H));
+      const ac = document.createElement('canvas'); ac.width = Math.max(1, Math.round(W * asc)); ac.height = Math.max(1, Math.round(H * asc));
+      ac.getContext('2d').drawImage(img, 0, 0, ac.width, ac.height);
+      const r = autoTrimRect(ac), k = 1 / asc;   // قص الحواف البيضاء تلقائياً
+      const R = { x: r.x * k, y: r.y * k, w: r.w * k, h: r.h * k };
+      // 2) قص منطقة الصورة (مع هامش 12%) من الأصل مباشرة بدقته الكاملة
+      const mx = R.w * 0.12, my = R.h * 0.12;
+      const x = Math.max(0, R.x - mx), y = Math.max(0, R.y - my);
+      const w = Math.min(W - x, R.w + 2 * mx), h = Math.min(H - y, R.h + 2 * my);
+      const sc = Math.min(1, 2400 / Math.max(w, h));
+      const src = document.createElement('canvas'); src.width = Math.max(1, Math.round(w * sc)); src.height = Math.max(1, Math.round(h * sc));
+      const g = src.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, x, y, w, h, 0, 0, src.width, src.height);
+      openPhotoCropper(src, { x: (R.x - x) * sc, y: (R.y - y) * sc, w: R.w * sc, h: R.h * sc }, cb);
     };
     img.onerror = () => alert('تعذّر قراءة الصورة، جرّبي صورة أخرى.');
     img.src = ev.target.result;
@@ -444,30 +470,26 @@ function compressImageFile(file, cb){
   reader.readAsDataURL(file);
 }
 
-function printAllCards(onlyPhoto, selected){
-  const secData = getSectionData();
+function printCardEntries(entries, win){
+  if(!entries || !entries.length){ if(win) win.close(); alert('لا توجد بطاقات للطباعة.'); return; }
   const minLogoData = localStorage.getItem('custom_ministry_logo_v2');
   const schLogoData = localStorage.getItem('custom_school_logo_v2');
 
   const minLogoHTML = `<img src="${minLogoData || getMinistryLogo()}" style="width:16.5mm; height:16.5mm; margin:-2mm 0 -0.5mm; object-fit:contain;">`;
   const schLogoHTML = schLogoData ? `<img src="${schLogoData}" style="width:14mm; height:14mm; object-fit:contain;">` : `<img src="${getSchoolLogo()}" style="width:14mm; height:14mm; object-fit:contain;">`;
 
-  const isGrade12 = currentGradeId === 'g12s' || currentGradeId === 'g12l';
-
   let cardsHTML = '';
-  secData.students.forEach((name, idx)=>{
-    if(secData.hiddenCards && secData.hiddenCards.includes(name)) return;
-    const photo = secData.photos[idx];
-    if(onlyPhoto === true && !photo) return;
-    if(Array.isArray(selected) && !selected.includes(idx)) return;
+  entries.forEach(e => {
+    const name = e.name, photo = e.photo;
+    const isGrade12 = e.gradeId === 'g12s' || e.gradeId === 'g12l';
     const shortName = formatThreePartName(name);
 
     const nameParts = name.trim().split(/\s+/);
     const fourName = nameParts.length > 4 ? [nameParts[0], nameParts[1], nameParts[2], nameParts[nameParts.length - 1]].join(' ') : nameParts.join(' ');
     // الألوان حسب الصف
     const T = isGrade12
-      ? { box:'border:2.5px solid #E85A71; background:linear-gradient(135deg, #0A1826 0%, #1E3A52 100%); color:#fff;', line:'#E85A71', title:'#E85A71', sub:'#2B2B2B', subBox:'background:#fff; border-radius:1.5mm; padding:0 2mm;', lbl:'#E85A71', val:'#000000', panel:'', valBox:'background:#fff; border-radius:1.5mm; padding:0.5mm 2mm;', foot:'#E85A71', phBorder:'1.5px solid #E85A71', phEmpty:'border:1.5px dashed #E85A71; color:#E85A71; background:rgba(232,90,113,0.05);', phText:'صورة<br>الخريجة', deco:'<div style="position:absolute; right:-10mm; bottom:-10mm; font-size:90pt; opacity:0.1; color:#E85A71; pointer-events:none;">🎓</div>', footTxt:'🌸 🎓 خريجة 2026-2027 🎓 🌸' }
-      : { box:'border:2px solid #0D2C54; background:#fff;', line:'#0D2C54', title:'#0D2C54', sub:'#2B2B2B', subBox:'', lbl:'#0D2C54', val:'#111111', panel:'', valBox:'', foot:'#0D2C54', phBorder:'none', phEmpty:'border:1.5px dashed #0D2C54; color:#0D2C54;', phText:'الصورة<br>الشخصية', deco:'', footTxt:'العام الدراسي 2026/2027' };
+      ? { box:'border:2.5px solid #E85A71; background:linear-gradient(135deg, #0A1826 0%, #1E3A52 100%); color:#fff;', line:'#E85A71', title:'#E85A71', sub:'#2B2B2B', subBox:'background:#fff; border-radius:1.5mm; padding:0 2mm;', lbl:'#E85A71', val:'#000000', panel:'', valBox:'background:#fff; border-radius:1.5mm; padding:0.5mm 2mm;', foot:'#E85A71', phBorder:'1pt solid #E85A71', phEmpty:'border:1.5px dashed #E85A71; color:#E85A71; background:rgba(232,90,113,0.05);', phText:'صورة<br>الخريجة', deco:'<div style="position:absolute; right:-10mm; bottom:-10mm; font-size:90pt; opacity:0.1; color:#E85A71; pointer-events:none;">🎓</div>', footTxt:'🌸 🎓 خريجة 2026-2027 🎓 🌸' }
+      : { box:'border:2px solid #0D2C54; background:#fff;', line:'#0D2C54', title:'#0D2C54', sub:'#2B2B2B', subBox:'', lbl:'#0D2C54', val:'#111111', panel:'', valBox:'', foot:'#0D2C54', phBorder:'1pt solid #0D2C54', phEmpty:'border:1.5px dashed #0D2C54; color:#0D2C54;', phText:'الصورة<br>الشخصية', deco:'', footTxt:'العام الدراسي 2026/2027' };
 
     cardsHTML += `
       <div style="width:90mm; height:60mm; ${T.box} border-radius:4mm; padding:3mm; display:flex; flex-direction:column; justify-content:space-between; page-break-inside:avoid; box-sizing:border-box; position:relative; overflow:hidden;">
@@ -486,18 +508,20 @@ function printAllCards(onlyPhoto, selected){
               <div style="${T.panel}">
                 <p style="margin:0; text-align:center; font-size:11.5pt; font-weight:800; color:${T.lbl};">الاسم:</p>
                 <p class="fitname" style="margin:1px 0 0; text-align:center; white-space:nowrap; font-size:14pt; font-weight:800; color:${T.val};"><span style="${T.valBox}">${fourName}</span></p>
-                <p style="margin:5mm 0 0; text-align:center; font-size:13.5pt; font-weight:800; color:${T.lbl};">الصف: <span style="color:${T.val}; ${T.valBox}">${currentSection}</span></p>
+                <p style="margin:5mm 0 0; text-align:center; font-size:13.5pt; font-weight:800; color:${T.lbl};">الصف: <span style="color:${T.val}; ${T.valBox}">${e.section}</span></p>
               </div>
             </div>
           </div>
-          ${photo ? `<img src="${photo}" style="width:24mm; height:31mm; border-radius:2mm; object-fit:cover; ${T.phBorder === 'none' ? '' : 'border:' + T.phBorder + ';'}">` : `<div style="width:24mm; height:31mm; ${T.phEmpty} border-radius:2mm; font-size:8pt; text-align:center; display:flex; align-items:center; justify-content:center;">${T.phText}</div>`}
+          ${photo ? `<img src="${photo}" style="width:24mm; height:31mm; box-sizing:border-box; border-radius:2mm; object-fit:cover; border:${T.phBorder};">` : `<div style="width:24mm; height:31mm; ${T.phEmpty} border-radius:2mm; font-size:8pt; text-align:center; display:flex; align-items:center; justify-content:center;">${T.phText}</div>`}
         </div>
         <div style="text-align:center; border-top:1px dashed ${T.line}; padding-top:2px; font-size:9pt; color:${T.foot}; font-weight:800; z-index:1;">${T.footTxt}</div>
       </div>
     `;
   });
 
-  const printWindow = window.open('', '_blank');
+  const printWindow = win || window.open('', '_blank');
+  if(!printWindow){ alert('منع المتصفح فتح نافذة الطباعة. اسمحي بالنوافذ المنبثقة ثم أعيدي المحاولة.'); return; }
+  printWindow.document.open();
   printWindow.document.write(`
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
@@ -519,7 +543,18 @@ function printAllCards(onlyPhoto, selected){
   printWindow.document.close();
 }
 
-
+// طباعة بطاقات شعبة واحدة (المعلمة، أو المحددات في صفحة شؤون الطلبة)
+function printAllCards(onlyPhoto, selected){
+  const secData = getSectionData(), entries = [];
+  secData.students.forEach((name, idx) => {
+    if(secData.hiddenCards && secData.hiddenCards.includes(name)) return;
+    const photo = secData.photos[idx];
+    if(onlyPhoto === true && !photo) return;
+    if(Array.isArray(selected) && !selected.includes(idx)) return;
+    entries.push({ name, photo, gradeId: currentGradeId, section: currentSection });
+  });
+  printCardEntries(entries);
+}
 
 /* ================= صفحة شؤون الطلبة المستقلة (بلا تسجيل دخول) ================= */
 let currentGradeId = GRADES[0].id, currentSection = SECTIONS[GRADES[0].id][0];
@@ -610,6 +645,71 @@ function renderAffairs(){
 }
 
 
+
+/* ===== طباعة بطاقات من صفوف مختلفة: تجميع طالبات من صفوف وشعب مختلفة في طباعة واحدة ===== */
+const BASKET_KEY = 'moudi_affairs_basket_v1';
+let basket = [];
+try{ basket = JSON.parse(localStorage.getItem(BASKET_KEY) || '[]'); }catch(e){ basket = []; }
+const bkeyOf = b => b.gradeId + '|' + b.section + '|' + b.name;
+function saveBasket(){ try{ localStorage.setItem(BASKET_KEY, JSON.stringify(basket)); }catch(e){} renderBasket(); }
+function affAddToBasket(){
+  const idxs = visibleIdxs().filter(i => live.sel && live.sel.has(i));
+  if(!idxs.length){ alert('حددي طالبة واحدة على الأقل لإضافتها إلى قائمة الطباعة.'); return; }
+  let added = 0;
+  idxs.forEach(i => {
+    const e = { gradeId: currentGradeId, section: currentSection, name: live.students[i] };
+    if(!basket.some(b => bkeyOf(b) === bkeyOf(e))){ basket.push(e); added++; }
+  });
+  saveBasket();
+  setStatus(`🧺 أُضيفت ${added} طالبة إلى قائمة طباعة صفوف مختلفة (المجموع ${basket.length}). انتقلي لشعبة أخرى وأضيفي منها.`, '#BFF0CF');
+}
+function affRemoveFromBasket(i){ basket.splice(i, 1); saveBasket(); }
+function affClearBasket(){ if(basket.length && !confirm('تفريغ قائمة الطباعة بالكامل؟')) return; basket = []; saveBasket(); }
+function renderBasket(){
+  const box = document.getElementById('affBasket'), btn = document.getElementById('affPrintBasketBtn');
+  if(!box) return;
+  document.getElementById('affBasketCount').textContent = basket.length;
+  if(btn) btn.style.display = basket.length ? '' : 'none';
+  if(!basket.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  const groups = {};
+  basket.forEach((b, i) => { const g = b.gradeId + '|' + b.section; (groups[g] = groups[g] || []).push({ b, i }); });
+  let html = `<b>🗂️ طباعة بطاقات من صفوف مختلفة: ${basket.length} طالبة</b> <button class="btn btn-outline" style="padding:3px 10px; font-size:12px; color:var(--red); border-color:var(--red);" onclick="affClearBasket()">🗑️ تفريغ القائمة</button>`;
+  Object.keys(groups).forEach(g => {
+    const [gid, sec] = g.split('|'), gr = GRADES.find(x => x.id === gid);
+    html += `<div style="margin-top:6px;"><b style="font-size:13px;">${escHtml(gr ? gr.name : gid)} — ${escHtml(sec)}:</b> ` +
+      groups[g].map(({ b, i }) => `<span class="pledge-chip" style="border-color:#9DB9DE;">${escHtml(formatThreePartName(b.name))} <button class="btn btn-outline" style="padding:0 7px; font-size:12px;" onclick="affRemoveFromBasket(${i})">✖</button></span>`).join('') + '</div>';
+  });
+  box.style.display = 'block'; box.innerHTML = html;
+}
+async function affPrintBasket(){
+  if(!basket.length){ alert('القائمة فارغة.'); return; }
+  const win = window.open('', '_blank');         // تُفتح فوراً حتى لا يمنعها المتصفح
+  if(!win){ alert('منع المتصفح فتح نافذة الطباعة. اسمحي بالنوافذ المنبثقة ثم أعيدي المحاولة.'); return; }
+  win.document.write('<html dir="rtl"><body style="font-family:sans-serif; padding:40px; text-align:center; color:#8A1C30;"><h3>جارٍ تجهيز البطاقات...</h3></body></html>');
+  setStatus('⏳ جارٍ تجهيز البطاقات...', '#FFD37A');
+  const groups = {}; basket.forEach(b => { const g = b.gradeId + '|' + b.section; (groups[g] = groups[g] || []).push(b); });
+  const entries = [], missing = [];
+  try{
+    for(const g of Object.keys(groups)){
+      const [gid, sec] = g.split('|'), base = db.ref(DB_PREFIX + `section_${gid}_${sec}`);
+      const [stS, phS] = await Promise.all([base.child('students').once('value'), base.child('photos').once('value')]);
+      const students = toArr(stS.val()), photos = phS.val() || {};
+      groups[g].forEach(b => {
+        const idx = students.indexOf(b.name);
+        if(idx < 0){ missing.push(b.name); return; }
+        entries.push({ name: b.name, photo: photos[idx] || '', gradeId: gid, section: sec });
+      });
+    }
+  }catch(e){ win.close(); alert('تعذّر تحميل البيانات من السحابة، تأكدي من الإنترنت وأعيدي المحاولة.'); setStatus('⚠️ تعذّر الاتصال بالسحابة', '#FFB3B3'); return; }
+  let list = entries;
+  const noPhoto = entries.filter(e => !e.photo);
+  if(noPhoto.length && !confirm(`${noPhoto.length} من الطالبات في القائمة بلا صورة.\n\nموافق: اطبعي بطاقاتهن أيضاً (بخانة صورة فارغة).\nإلغاء: اطبعي من لديهن صور فقط.`)) list = entries.filter(e => e.photo);
+  if(missing.length) alert('لم أجد هؤلاء في قوائم شعبهن (ربما تغيّر الاسم أو حُذفن):\n' + missing.join('\n'));
+  setStatus(`🖨️ تم تجهيز ${list.length} بطاقة`, '#BFF0CF');
+  printCardEntries(list, win);
+  if(list.length && confirm('هل تريدين تفريغ قائمة الطباعة بعد الطباعة؟')){ basket = []; saveBasket(); }
+}
+
 /* ===== اختيار الطالبات اللواتي تُطبع بطاقاتهن ===== */
 function visibleIdxs(){ const st = live.students || []; return st.map((n, i) => i).filter(i => !live.hidden.includes(st[i])); }
 function updateSelUI(){
@@ -639,6 +739,27 @@ async function affRecrop(idx){
     .catch(() => alert('تعذّر فتح الصورة.'));
 }
 function shrinkRect(r, e){ return { x: r.x + r.w * e, y: r.y + r.h * e, w: r.w * (1 - 2 * e), h: r.h * (1 - 2 * e) }; }
+/* ===== تنظيف المساحة بعد الطباعة ===== */
+async function affCleanup(){
+  const st = live.students || [];
+  const idxs = visibleIdxs().filter(i => live.sel && live.sel.has(i) && ((live.photos && live.photos[i]) || (live.bk && live.bk[i])));
+  if(!idxs.length){ alert('لا توجد صور أو نسخ محفوظة للطالبات المحددات.'); return; }
+  if(!confirm(`⚠️ سيتم حذف نهائي لصور ${idxs.length} طالبة محددة في هذه الشعبة، مع النسخة العالية الجودة ونسخ التراجع الخاصة بها.\n\nتأكدي أنك طبعتِ البطاقات قبل الحذف. بعد الحذف لا يمكن استرجاع الصور ولا التراجع.\n\nهل تريدين المتابعة؟`)) return;
+  const name = secName(); let done = 0;
+  for(const i of idxs){
+    try{
+      await Promise.all([
+        db.ref(DB_PREFIX + name + '/photos/' + i).remove(),
+        db.ref(DB_PREFIX + 'photo_src/' + name + '/' + i).remove(),
+        bkRef(name, i).remove(),
+        db.ref(DB_PREFIX + 'photo_backup_flag/' + name + '/' + i).remove()
+      ]);
+      done++; setStatus(`⏳ تم حذف ${done} من ${idxs.length}...`);
+    }catch(e){}
+  }
+  setStatus(`✅ تم حذف صور ${done} من ${idxs.length} طالبة وتفريغ مساحتها`, '#BFF0CF');
+}
+
 /* ===== التراجع ===== */
 async function swapBackup(name, idx, key){
   const bk = bkRef(name, idx), b = (await bk.once('value')).val() || {};
@@ -673,9 +794,9 @@ function trackWrite(promise){
 }
 function affUploadPhoto(e, idx){
   const file = e.target.files[0]; if(!file) return;
-  e.target.value = ''; compressImageFile(file, (dataUrl, srcCanvas) => {
+  e.target.value = ''; compressImageFile(file, (dataUrl, srcCanvas, trimRect) => {
     const name = secName(), cur = (live.photos || {})[idx];
-    const srcUrl = srcCanvas.toDataURL('image/jpeg', 0.88);
+    const srcUrl = makeStoredSource(srcCanvas, trimRect);
     trackWrite(Promise.all([ backedUpSet(name, idx, cur, dataUrl, true), db.ref(DB_PREFIX + 'photo_src/' + name + '/' + idx).set(srcUrl) ]));
   });
 }
@@ -688,7 +809,7 @@ function affRemovePhoto(idx){
 window.addEventListener('beforeunload', e => { if(pending > 0){ e.preventDefault(); e.returnValue = ''; } });
 ['affLogoImg','affMainLogoImg'].forEach(id => { document.getElementById(id).src = getSchoolLogo(); });
 document.getElementById('affSection').onchange = e => { currentSection = e.target.value; watchSection(); };
-fillSections(); renderAffNav(); watchSection(); setStatus('جاهزة', '#FFD37A');
+fillSections(); renderAffNav(); watchSection(); renderBasket(); setStatus('جاهزة', '#FFD37A');
 </script>
 </body>
 </html>
